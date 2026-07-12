@@ -1,0 +1,82 @@
+#!/bin/bash
+set -euo pipefail
+
+echo "[init-firewall] Setting up the firewall..."
+
+DOCKER_DNS_RULES="$(iptables-save 2>/dev/null | grep '127.0.0.11' || true)"
+
+iptables -F
+iptables -X
+ipset destroy allowed-domains 2>/dev/null || true
+
+iptables -P INPUT DROP
+iptables -P FORWARD DROP
+iptables -P OUTPUT DROP
+
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
+
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+if [ -n "$DOCKER_DNS_RULES" ]; then
+  while IFS= read -r rule; do
+    [ -z "$rule" ] && continue
+    iptables ${rule} 2>/dev/null || true
+  done <<< "$DOCKER_DNS_RULES"
+fi
+
+iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+
+ipset create allowed-domains hash:net
+
+ANTHROPIC_STATIC_RANGES=(
+  "160.79.104.0/21"
+)
+
+for cidr in "${ANTHROPIC_STATIC_RANGES[@]}"; do
+  ipset add allowed-domains "$cidr" 2>/dev/null || true
+done
+
+ALLOWED_DOMAINS=(
+  "api.anthropic.com"
+  "console.anthropic.com"
+  "platform.claude.com"
+  "claude.ai"
+  "statsig.anthropic.com"
+  "statsig.com"
+  "api.statsig.com"
+  "registry.npmjs.org"
+  "npmjs.org"
+  "www.npmjs.org"
+  "github.com"
+  "api.github.com"
+  "codeload.github.com"
+  "raw.githubusercontent.com"
+)
+
+for domain in "${ALLOWED_DOMAINS[@]}"; do
+  ips="$(dig +short "$domain" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)"
+  if [ -z "$ips" ]; then
+    echo "[init-firewall] WARNING: could not resolve $domain, skipping"
+    continue
+  fi
+  while IFS= read -r ip; do
+    ipset add allowed-domains "$ip" 2>/dev/null || true
+  done <<< "$ips"
+done
+
+GITHUB_META="$(curl -s --max-time 5 https://api.github.com/meta || true)"
+if [ -n "$GITHUB_META" ]; then
+  echo "$GITHUB_META" | grep -oE '"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+"' | tr -d '"' | while read -r cidr; do
+    ipset add allowed-domains "$cidr" 2>/dev/null || true
+  done
+fi
+
+iptables -A OUTPUT -m set --match-set allowed-domains dst -j ACCEPT
+
+iptables -A OUTPUT -j REJECT --reject-with icmp-admin-prohibited
+iptables -A INPUT -j REJECT --reject-with icmp-admin-prohibited
+
+echo "[init-firewall] Done. Egress restricted to an allow-list of ${#ALLOWED_DOMAINS[@]} domains + GitHub's ranges."

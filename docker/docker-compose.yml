@@ -1,0 +1,44 @@
+services:
+  claude-shell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION:-latest}
+    image: claude-shell:latest
+    container_name: claude-shell
+    hostname: claude-shell
+
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-}
+      - DISABLE_AUTOUPDATER=1
+      - DISABLE_ERROR_REPORTING=${DISABLE_ERROR_REPORTING:-1}
+      - DISABLE_BUG_COMMAND=${DISABLE_BUG_COMMAND:-1}
+      - CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=${CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY:-1}
+      - TZ=${TZ:-Europe/Moscow}
+
+    volumes:
+      - claude-shell-config:/home/claude/.claude
+      - claude-shell-npm-cache:/home/claude/.npm
+
+    networks:
+      - claude-shell
+
+    stdin_open: true
+    tty: true
+
+networks:
+  claude-shell:
+    external: true
+
+volumes:
+  claude-shell-config:
+    external: true
+  claude-shell-npm-cache:
+    external: true

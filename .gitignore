@@ -1,0 +1,6 @@
+docker/.env
+docker/.build-hash
+scripts/mounts.conf
+docker/docker-compose.mounts.yml
+workspace/
+.DS_Store
