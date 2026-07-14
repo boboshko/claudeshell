@@ -9,6 +9,7 @@ mkdir -p "$SCRIPT_ROOT/workspace"
 
 source "$SCRIPT_ROOT/scripts/lib-menu.sh"
 source "$SCRIPT_ROOT/scripts/lib-mounts.sh"
+source "$SCRIPT_ROOT/scripts/lib-update.sh"
 
 show_banner() {
   clear
@@ -19,20 +20,33 @@ show_banner() {
 show_banner
 
 main_menu() {
-  local options=(
-    "1. Run Claude Code"
-    "2. Manage mounted folders"
-    "3. Fix authorization link"
-    "0. Exit"
-  )
-
   while true; do
     show_banner
-    menu_select "Choose an action:" "${options[@]}"
+
+    local core_options=("Run Claude Code" "Manage mounted folders" "Fix authorization link")
+    local core_actions=("run" "mounts" "fix-oauth")
+
+    if check_for_update; then
+      core_options+=("Update to ${LATEST_VERSION}")
+      core_actions+=("update")
+    fi
+
+    local labels=()
+    for i in "${!core_options[@]}"; do
+      labels+=("$((i + 1)). ${core_options[$i]}")
+    done
+    labels+=("0. Exit")
+    local actions=("${core_actions[@]}" "exit")
+
+    menu_select "Choose an action:" "${labels[@]}"
     choice=$?
 
-    case $choice in
-      0)
+    if [ "$choice" -eq 255 ]; then
+      echo; echo "Bye!"; exit 0
+    fi
+
+    case "${actions[$choice]}" in
+      run)
         show_banner
         if ! bash "$SCRIPT_ROOT/scripts/run-claude.sh"; then
           rc=$?
@@ -41,9 +55,22 @@ main_menu() {
           press_enter_to_continue
         fi
         ;;
-      1) bash "$SCRIPT_ROOT/scripts/manage-mounts.sh" ;;
-      2) show_banner; bash "$SCRIPT_ROOT/scripts/fix-oauth-url.sh" ;;
-      3|255) echo; echo "Bye!"; exit 0 ;;
+      mounts) bash "$SCRIPT_ROOT/scripts/manage-mounts.sh" ;;
+      fix-oauth) show_banner; bash "$SCRIPT_ROOT/scripts/fix-oauth-url.sh" ;;
+      update)
+        show_banner
+        if bash "$SCRIPT_ROOT/scripts/update.sh" "$LATEST_VERSION"; then
+          echo
+          echo "Update complete. Restarting ClaudeShell..."
+          sleep 1
+          exec "$SCRIPT_ROOT/start.sh"
+        else
+          echo
+          echo "Update failed. See the output above."
+          press_enter_to_continue
+        fi
+        ;;
+      exit) echo; echo "Bye!"; exit 0 ;;
     esac
   done
 }
