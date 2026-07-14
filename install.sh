@@ -3,7 +3,7 @@ set -e
 
 REPO="boboshko/claudeshell"
 BRANCH="main"
-TARGET_DIR="${1:-./claude-shell}"
+TARGET_DIR="${1:-./claudeshell}"
 
 echo "Installing ClaudeShell into: $TARGET_DIR"
 
