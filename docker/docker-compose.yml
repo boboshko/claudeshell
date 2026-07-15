@@ -22,7 +22,7 @@ services:
       - DISABLE_ERROR_REPORTING=${DISABLE_ERROR_REPORTING:-1}
       - DISABLE_BUG_COMMAND=${DISABLE_BUG_COMMAND:-1}
       - CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=${CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY:-1}
-      - TZ=${TZ:-Europe/Moscow}
+      - TZ=${TZ:-UTC}
 
     volumes:
       - claude-shell-config:/home/claude/.claude
