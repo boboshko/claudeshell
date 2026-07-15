@@ -3,6 +3,7 @@ FROM node:20-slim
 ARG CLAUDE_CODE_VERSION=latest
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     git \
     iptables \
     ipset \
