@@ -40,4 +40,6 @@ chmod +x \
   "$SCRIPT_ROOT"/docker/init-firewall.sh \
   2>/dev/null || true
 
+rm -f "$SCRIPT_ROOT/docker/.build-hash"
+
 echo "Updated to ${TARGET_VERSION}."

@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
       args:
         CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION:-latest}
+        CACHE_BUST: ${CACHE_BUST:-1}
     image: claude-shell:latest
     container_name: claude-shell
     hostname: claude-shell

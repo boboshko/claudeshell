@@ -3,6 +3,8 @@ set -e
 
 cd "$SCRIPT_ROOT/docker"
 
+export CACHE_BUST="$(date +%s)"
+
 if [ -f .env ]; then
   docker compose -p claude-shell --env-file .env -f docker-compose.yml build
 else
