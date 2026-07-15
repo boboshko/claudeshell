@@ -20,7 +20,6 @@ _update_is_newer() {
   [ "$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n1)" = "$latest" ]
 }
 
-# Sets LATEST_VERSION. Returns 0 if a newer release is available, 1 otherwise.
 check_for_update() {
   local now cached_time cached_tag current
   current="$(_update_current_version)"

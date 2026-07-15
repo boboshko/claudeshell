@@ -61,23 +61,28 @@ ALLOWED_DOMAINS=(
   "raw.githubusercontent.com"
 )
 
-for domain in "${ALLOWED_DOMAINS[@]}"; do
-  ips="$(dig +short "$domain" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)"
-  if [ -z "$ips" ]; then
-    echo "[init-firewall] WARNING: could not resolve $domain, skipping"
-    continue
-  fi
-  while IFS= read -r ip; do
-    ipset add allowed-domains "$ip" 2>/dev/null || true
-  done <<< "$ips"
-done
-
-GITHUB_META="$(curl -s --max-time 5 https://api.github.com/meta || true)"
-if [ -n "$GITHUB_META" ]; then
-  echo "$GITHUB_META" | grep -oE '"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+"' | tr -d '"' | while read -r cidr; do
-    ipset add allowed-domains "$cidr" 2>/dev/null || true
+refresh_allowed_domains() {
+  for domain in "${ALLOWED_DOMAINS[@]}"; do
+    ips="$(dig +short "$domain" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)"
+    if [ -z "$ips" ]; then
+      echo "[init-firewall] WARNING: could not resolve $domain, skipping"
+      continue
+    fi
+    while IFS= read -r ip; do
+      ipset add allowed-domains "$ip" 2>/dev/null || true
+    done <<< "$ips"
   done
-fi
+
+  local github_meta
+  github_meta="$(curl -s --max-time 5 https://api.github.com/meta || true)"
+  if [ -n "$github_meta" ]; then
+    echo "$github_meta" | grep -oE '"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+"' | tr -d '"' | while read -r cidr; do
+      ipset add allowed-domains "$cidr" 2>/dev/null || true
+    done
+  fi
+}
+
+refresh_allowed_domains
 
 iptables -A OUTPUT -m set --match-set allowed-domains dst -j ACCEPT
 
@@ -85,3 +90,11 @@ iptables -A OUTPUT -j REJECT --reject-with icmp-admin-prohibited
 iptables -A INPUT -j REJECT --reject-with icmp-admin-prohibited
 
 echo "[init-firewall] Done. Egress restricted to an allow-list of ${#ALLOWED_DOMAINS[@]} domains + GitHub's ranges."
+
+(
+  while true; do
+    sleep 300
+    refresh_allowed_domains >/dev/null 2>&1 || true
+  done
+) &
+disown
