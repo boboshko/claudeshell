@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     && rm -rf /var/lib/apt/lists/*
 
+ARG CACHE_BUST=1
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 
 RUN useradd -m -s /bin/bash claude \

@@ -18,11 +18,16 @@ _sha256() {
 HASH_FILE="$SCRIPT_ROOT/docker/.build-hash"
 
 compute_build_hash() {
-  cat \
+  local claude_code_version=""
+  [ -f "$SCRIPT_ROOT/docker/.env" ] && claude_code_version="$(grep -m1 '^CLAUDE_CODE_VERSION=' "$SCRIPT_ROOT/docker/.env" | cut -d= -f2-)"
+
+  { cat \
     "$SCRIPT_ROOT/docker/Dockerfile" \
     "$SCRIPT_ROOT/docker/entrypoint.sh" \
     "$SCRIPT_ROOT/docker/init-firewall.sh" \
-    2>/dev/null | _sha256
+    2>/dev/null
+    echo "CLAUDE_CODE_VERSION=${claude_code_version:-latest}"
+  } | _sha256
 }
 
 image_exists() {
