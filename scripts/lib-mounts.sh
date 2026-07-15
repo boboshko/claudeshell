@@ -45,7 +45,9 @@ mounts_generate_override() {
         local base
         base="$(printf '%s' "$(basename "$path")" | tr -c 'a-zA-Z0-9_-' '-')"
         local target="/workspace/${i}-${base}"
-        echo "      - ${path}:${target}"
+        local escaped_path="${path//\\/\\\\}"
+        escaped_path="${escaped_path//\"/\\\"}"
+        echo "      - \"${escaped_path}:${target}\""
         ADD_DIR_ARGS+=("--add-dir" "$target")
       done < "$MOUNTS_CONF"
     else
