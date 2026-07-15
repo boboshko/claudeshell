@@ -3,7 +3,7 @@ set -e
 
 REPO="boboshko/claudeshell"
 BRANCH="main"
-TARGET_DIR="${1:-./claude-shell}"
+TARGET_DIR="${1:-./claudeshell}"
 
 echo "Installing ClaudeShell into: $TARGET_DIR"
 
@@ -23,9 +23,8 @@ tmp_extract="$(mktemp -d)"
 trap 'rm -f "$tmp_tar" /tmp/claudeshell-curl-err; rm -rf "$tmp_extract"' EXIT
 
 _download_tarball() {
-  local branch="$1"
+  local url="$1"
   local dest="$2"
-  local url="https://github.com/${REPO}/archive/refs/heads/${branch}.tar.gz"
 
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "$url" -o "$dest" 2>/tmp/claudeshell-curl-err || return 1
@@ -42,28 +41,46 @@ _download_tarball() {
   return 0
 }
 
-echo "Downloading the latest version from GitHub (branch ${BRANCH})..."
-if ! _download_tarball "$BRANCH" "$tmp_tar"; then
-  echo "Branch '${BRANCH}' didn't work. Trying to detect the default branch via the GitHub API..."
-  default_branch="$(curl -fsSL "https://api.github.com/repos/${REPO}" 2>/dev/null | grep -o '"default_branch"[^,]*' | grep -o '"[^"]*"$' | tr -d '"')"
+_latest_release_tag() {
+  curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null \
+    | grep -o '"tag_name"[^,]*' | grep -o '"[^"]*"$' | tr -d '"'
+}
 
-  if [ -n "$default_branch" ] && [ "$default_branch" != "$BRANCH" ]; then
-    echo "Found default branch: ${default_branch}. Trying again..."
-    if ! _download_tarball "$default_branch" "$tmp_tar"; then
+echo "Looking up the latest release..."
+latest_tag="$(_latest_release_tag)"
+
+if [ -n "$latest_tag" ]; then
+  echo "Latest release: ${latest_tag}. Downloading..."
+  if ! _download_tarball "https://github.com/${REPO}/archive/refs/tags/${latest_tag}.tar.gz" "$tmp_tar"; then
+    echo "Couldn't download release '${latest_tag}'. Falling back to the ${BRANCH} branch..."
+    latest_tag=""
+  fi
+fi
+
+if [ -z "$latest_tag" ]; then
+  echo "Downloading the latest version from GitHub (branch ${BRANCH})..."
+  if ! _download_tarball "https://github.com/${REPO}/archive/refs/heads/${BRANCH}.tar.gz" "$tmp_tar"; then
+    echo "Branch '${BRANCH}' didn't work. Trying to detect the default branch via the GitHub API..."
+    default_branch="$(curl -fsSL "https://api.github.com/repos/${REPO}" 2>/dev/null | grep -o '"default_branch"[^,]*' | grep -o '"[^"]*"$' | tr -d '"')"
+
+    if [ -n "$default_branch" ] && [ "$default_branch" != "$BRANCH" ]; then
+      echo "Found default branch: ${default_branch}. Trying again..."
+      if ! _download_tarball "https://github.com/${REPO}/archive/refs/heads/${default_branch}.tar.gz" "$tmp_tar"; then
+        echo
+        echo "Couldn't download the archive from branch '${default_branch}' either."
+        echo "The repo ${REPO} might not be public, might be private, or the URL might be wrong."
+        exit 1
+      fi
+    else
       echo
-      echo "Couldn't download the archive from branch '${default_branch}' either."
-      echo "The repo ${REPO} might not be public, might be private, or the URL might be wrong."
+      echo "Couldn't download the archive for ${REPO} (branch ${BRANCH})."
+      echo "Check that the repo is public and exists."
+      if [ -f /tmp/claudeshell-curl-err ]; then
+        echo "curl/wget error:"
+        cat /tmp/claudeshell-curl-err
+      fi
       exit 1
     fi
-  else
-    echo
-    echo "Couldn't download the archive for ${REPO} (branch ${BRANCH})."
-    echo "Check that the repo is public and exists."
-    if [ -f /tmp/claudeshell-curl-err ]; then
-      echo "curl/wget error:"
-      cat /tmp/claudeshell-curl-err
-    fi
-    exit 1
   fi
 fi
 

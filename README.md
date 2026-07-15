@@ -21,7 +21,7 @@ curl -fsSL https://raw.githubusercontent.com/boboshko/claudeshell/main/install.s
 Go into the ClaudeShell folder:
 
 ```bash
-cd claude-shell
+cd claudeshell
 ```
 
 Run the shell:
