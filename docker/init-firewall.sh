@@ -26,8 +26,13 @@ if [ -n "$DOCKER_DNS_RULES" ]; then
   done <<< "$DOCKER_DNS_RULES"
 fi
 
-iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+DNS_SERVERS="$(awk '/^nameserver/ {print $2}' /etc/resolv.conf 2>/dev/null)"
+[ -n "$DNS_SERVERS" ] || DNS_SERVERS="127.0.0.11"
+
+for ns in $DNS_SERVERS; do
+  iptables -A OUTPUT -p udp -d "$ns" --dport 53 -j ACCEPT
+  iptables -A OUTPUT -p tcp -d "$ns" --dport 53 -j ACCEPT
+done
 
 ipset create allowed-domains hash:net
 
