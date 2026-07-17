@@ -15,9 +15,10 @@ _update_fetch_latest_tag() {
 
 _update_is_newer() {
   local latest="$1" current="$2"
-  [ -n "$latest" ] || return 1
-  [ "$latest" != "$current" ] || return 1
-  [ "$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n1)" = "$latest" ]
+  local latest_num="${latest#v}" current_num="${current#v}"
+  [ -n "$latest_num" ] || return 1
+  [ "$latest_num" != "$current_num" ] || return 1
+  [ "$(printf '%s\n%s\n' "$current_num" "$latest_num" | sort -V | tail -n1)" = "$latest_num" ]
 }
 
 check_for_update() {
