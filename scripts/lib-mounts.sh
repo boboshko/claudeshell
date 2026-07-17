@@ -36,8 +36,14 @@ mounts_generate_override() {
   {
     echo "services:"
     echo "  claude-shell:"
+    echo "    volumes:"
+
+    local root_path="${SCRIPT_ROOT}/workspace"
+    local escaped_root="${root_path//\\/\\\\}"
+    escaped_root="${escaped_root//\"/\\\"}"
+    echo "      - \"${escaped_root}:/workspace\""
+
     if [ -s "$MOUNTS_CONF" ]; then
-      echo "    volumes:"
       local i=0
       while IFS= read -r path; do
         [ -z "$path" ] && continue
@@ -50,8 +56,6 @@ mounts_generate_override() {
         echo "      - \"${escaped_path}:${target}\""
         ADD_DIR_ARGS+=("--add-dir" "$target")
       done < "$MOUNTS_CONF"
-    else
-      echo "    volumes: []"
     fi
   } > "$MOUNTS_OVERRIDE"
 }
