@@ -8,7 +8,9 @@ if [ ! -e "$HOME/.claude.json" ] || [ ! -L "$HOME/.claude.json" ]; then
   ln -sf "$HOME/.claude/.claude.json" "$HOME/.claude.json"
 fi
 
-if sudo /usr/local/bin/init-firewall.sh; then
+if [ "${DISABLE_FIREWALL:-0}" = "1" ]; then
+  echo "[entrypoint] WARNING: firewall disabled for this session — egress is unrestricted."
+elif sudo /usr/local/bin/init-firewall.sh; then
   echo "[entrypoint] Firewall active: egress restricted to the allow-list."
 else
   echo "[entrypoint] WARNING: firewall not started (missing NET_ADMIN/NET_RAW?). Egress is not restricted."
