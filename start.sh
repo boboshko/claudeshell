@@ -48,12 +48,28 @@ main_menu() {
     case "${actions[$choice]}" in
       run)
         show_banner
+        menu_select "Firewall for this session:" \
+          "Firewall ON (default, recommended)" \
+          "Firewall OFF (unrestricted internet access — risky)" \
+          "← Back"
+        fw_choice=$?
+        if [ "$fw_choice" -eq 255 ] || [ "$fw_choice" -eq 2 ]; then
+          continue
+        fi
+
+        unset DISABLE_FIREWALL
+        if [ "$fw_choice" -eq 1 ]; then
+          export DISABLE_FIREWALL=1
+        fi
+
+        show_banner
         if ! bash "$SCRIPT_ROOT/scripts/run-claude.sh"; then
           rc=$?
           echo
           echo "Run failed (exit code $rc). See the output above."
           press_enter_to_continue
         fi
+        unset DISABLE_FIREWALL
         ;;
       mounts) bash "$SCRIPT_ROOT/scripts/manage-mounts.sh" ;;
       fix-oauth) show_banner; bash "$SCRIPT_ROOT/scripts/fix-oauth-url.sh" ;;
