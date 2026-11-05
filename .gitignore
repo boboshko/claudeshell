@@ -5,3 +5,10 @@ docker/docker-compose.mounts.yml
 workspace/
 .DS_Store
 .update-cache
+scripts/firewall.conf
+scripts/tools.conf
+docker/docker-compose.docker-socket.yml
+docker/.build-log
+docker/.build-status
+docker/.build.lock
+scripts/platform/macos/.bridge.pid

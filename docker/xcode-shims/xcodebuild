@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+shopt -s lastpipe
+
+PORT="${XCODE_BRIDGE_PORT:-47870}"
+REQ="$(mktemp)"
+trap 'rm -f "$REQ"' EXIT
+
+printf '%s\0' "xcodebuild" "$PWD" "$@" > "$REQ"
+
+exit_code=69
+
+if curl -fsS --no-buffer --data-binary @"$REQ" \
+       -H 'Content-Type: application/octet-stream' \
+       "http://host.docker.internal:${PORT}/invoke" 2>/dev/null | while IFS= read -r line; do
+       case "$line" in
+         1\|*) printf '%s\n' "${line#1|}" ;;
+         2\|*) printf '%s\n' "${line#2|}" >&2 ;;
+         0\|*) exit_code="${line#0|}" ;;
+       esac
+     done
+then
+  :
+fi
+curl_status="${PIPESTATUS[0]}"
+
+if [ "$curl_status" -ne 0 ]; then
+  echo "xcodebuild (bridge): cannot reach the ClaudeShell Xcode bridge" \
+       "helper on the host (host.docker.internal:${PORT}). Enable it from" \
+       "ClaudeShell: Tools -> Xcode." >&2
+  exit 69
+fi
+
+exit "$exit_code"

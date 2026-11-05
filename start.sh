@@ -10,6 +10,9 @@ mkdir -p "$SCRIPT_ROOT/workspace"
 source "$SCRIPT_ROOT/scripts/lib-menu.sh"
 source "$SCRIPT_ROOT/scripts/lib-mounts.sh"
 source "$SCRIPT_ROOT/scripts/lib-update.sh"
+source "$SCRIPT_ROOT/scripts/lib-platform.sh"
+source "$SCRIPT_ROOT/scripts/lib-firewall.sh"
+source "$SCRIPT_ROOT/scripts/lib-tools.sh"
 
 show_banner() {
   clear
@@ -23,8 +26,9 @@ main_menu() {
   while true; do
     show_banner
 
-    local core_options=("Run Claude Code" "Manage mounted folders" "Fix authorization link")
-    local core_actions=("run" "mounts" "fix-oauth")
+    local core_options=("Run Claude Code" "Manage mounted folders" \
+      "Firewall" "Tools" "Image" "Fix authorization link")
+    local core_actions=("run" "mounts" "firewall" "tools" "image" "fix-oauth")
 
     if check_for_update; then
       core_options+=("Update to ${LATEST_VERSION}")
@@ -48,23 +52,17 @@ main_menu() {
     case "${actions[$choice]}" in
       run)
         show_banner
-        menu_select "Firewall for this session:" \
-          "Firewall ON (default, recommended)" \
-          "Firewall OFF (unrestricted internet access — risky)" \
-          "← Back"
-        fw_choice=$?
-        if [ "$fw_choice" -eq 255 ] || [ "$fw_choice" -eq 2 ]; then
-          continue
-        fi
-
-        unset DISABLE_FIREWALL
-        if [ "$fw_choice" -eq 1 ]; then
+        firewall_conf_ensure
+        if [ "$(firewall_mode)" = "disabled" ]; then
+          echo "Firewall: Disabled — unrestricted egress. Change this in the Firewall menu."
           export DISABLE_FIREWALL=1
+        else
+          echo "Firewall: Recommended ($(firewall_active_count) service(s) active). Change this in the Firewall menu."
+          unset DISABLE_FIREWALL
         fi
-
-        show_banner
-        if ! bash "$SCRIPT_ROOT/scripts/run-claude.sh"; then
-          rc=$?
+        echo
+        bash "$SCRIPT_ROOT/scripts/run-claude.sh"; rc=$?
+        if [ "$rc" -ne 0 ]; then
           echo
           echo "Run failed (exit code $rc). See the output above."
           press_enter_to_continue
@@ -72,6 +70,9 @@ main_menu() {
         unset DISABLE_FIREWALL
         ;;
       mounts) bash "$SCRIPT_ROOT/scripts/manage-mounts.sh" ;;
+      firewall) bash "$SCRIPT_ROOT/scripts/manage-firewall.sh" ;;
+      tools)    bash "$SCRIPT_ROOT/scripts/manage-tools.sh" ;;
+      image)    bash "$SCRIPT_ROOT/scripts/manage-image.sh" ;;
       fix-oauth) show_banner; bash "$SCRIPT_ROOT/scripts/fix-oauth-url.sh" ;;
       update)
         show_banner
