@@ -8,6 +8,7 @@ menu_select() {
   local key
   local n=${#options[@]}
 
+  tput smcup 2>/dev/null
   tput civis 2>/dev/null
 
   _draw_menu() {
@@ -34,6 +35,7 @@ menu_select() {
 
     if [[ -z $key || $key == $'\r' || $key == $'\n' ]]; then
       tput cnorm 2>/dev/null
+      tput rmcup 2>/dev/null
       return $selected
     elif [[ $key == $'\x1b' ]]; then
       read -rsn2 key
@@ -47,6 +49,7 @@ menu_select() {
       esac
     elif [[ $key == "q" ]]; then
       tput cnorm 2>/dev/null
+      tput rmcup 2>/dev/null
       return 255
     fi
 
@@ -109,6 +112,7 @@ menu_multiselect() {
     fi
   done
 
+  tput smcup 2>/dev/null
   tput civis 2>/dev/null
 
   _ms_draw() {
@@ -156,6 +160,7 @@ menu_multiselect() {
 
     if [[ -z $key || $key == $'\r' || $key == $'\n' ]]; then
       tput cnorm 2>/dev/null
+      tput rmcup 2>/dev/null
       return 0
     elif [[ $key == $'\x1b' ]]; then
       read -rsn2 key
@@ -200,6 +205,7 @@ menu_multiselect() {
         MS_STATE[$j]="${entry_state[$j]}"
       done
       tput cnorm 2>/dev/null
+      tput rmcup 2>/dev/null
       return 255
     fi
 
