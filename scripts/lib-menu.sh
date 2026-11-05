@@ -11,6 +11,9 @@ menu_select() {
   tput civis 2>/dev/null
 
   _draw_menu() {
+    tput cup 0 0 2>/dev/null
+    tput ed 2>/dev/null
+    [ -n "${MENU_HEADER:-}" ] && "$MENU_HEADER"
     echo -e "\033[1m${title}\033[0m"
     echo
     for i in "${!options[@]}"; do
@@ -23,8 +26,6 @@ menu_select() {
     echo
     echo "  ↑/↓ — navigate, Enter — select, q — quit"
   }
-
-  local lines_drawn=$(( n + 4 ))
 
   _draw_menu
 
@@ -49,10 +50,6 @@ menu_select() {
       return 255
     fi
 
-    for ((i = 0; i < lines_drawn; i++)); do
-      tput cuu1 2>/dev/null
-      tput el 2>/dev/null
-    done
     _draw_menu
   done
 }
@@ -71,6 +68,7 @@ menu_multiselect() {
   local labels=()
   local descs=()
   local is_header=()
+  local is_action=()
   local sel_index_map=()
   local sel_count=0
   local i
@@ -82,13 +80,21 @@ menu_multiselect() {
     if [[ "$item" == *"|"* ]]; then
       desc="${item#*|}"
     fi
-    labels[i]="$label"
     descs[i]="$desc"
     if [[ "$label" == "##"* ]]; then
+      labels[i]="$label"
       is_header[i]=1
+      is_action[i]=0
+      sel_index_map[i]=-1
+    elif [[ "$label" == "@@"* ]]; then
+      labels[i]="${label#@@}"
+      is_header[i]=0
+      is_action[i]=1
       sel_index_map[i]=-1
     else
+      labels[i]="$label"
       is_header[i]=0
+      is_action[i]=0
       sel_index_map[i]=$sel_count
       sel_count=$((sel_count + 1))
     fi
@@ -106,11 +112,20 @@ menu_multiselect() {
   tput civis 2>/dev/null
 
   _ms_draw() {
+    tput cup 0 0 2>/dev/null
+    tput ed 2>/dev/null
+    [ -n "${MENU_HEADER:-}" ] && "$MENU_HEADER"
     echo -e "\033[1m${title}\033[0m"
     echo
     for ((i = 0; i < n; i++)); do
       if [ "${is_header[$i]}" -eq 1 ]; then
         echo -e "  \033[1m${labels[$i]#\#\#}\033[0m"
+      elif [ "${is_action[$i]}" -eq 1 ]; then
+        if [ "$i" -eq "$cursor" ]; then
+          echo -e "  \033[1;36m→ ${labels[$i]}\033[0m"
+        else
+          echo "    ${labels[$i]}"
+        fi
       else
         local sidx="${sel_index_map[$i]}"
         local mark="[ ]"
@@ -132,8 +147,6 @@ menu_multiselect() {
       echo
     fi
   }
-
-  local lines_drawn=$(( n + 5 ))
 
   _ms_draw
 
@@ -170,14 +183,16 @@ menu_multiselect() {
       esac
     elif [[ $key == " " ]]; then
       local sidx="${sel_index_map[$cursor]}"
-      if [ "${MS_STATE[$sidx]}" = "1" ]; then
-        MS_STATE[$sidx]="0"
-      else
-        MS_STATE[$sidx]="1"
-      fi
-      if [ -n "${MS_ON_TOGGLE:-}" ]; then
-        local slug="${MS_SLUGS[$sidx]:-$sidx}"
-        "$MS_ON_TOGGLE" "$slug" "${MS_STATE[$sidx]}"
+      if [ "$sidx" -ge 0 ]; then
+        if [ "${MS_STATE[$sidx]}" = "1" ]; then
+          MS_STATE[$sidx]="0"
+        else
+          MS_STATE[$sidx]="1"
+        fi
+        if [ -n "${MS_ON_TOGGLE:-}" ]; then
+          local slug="${MS_SLUGS[$sidx]:-$sidx}"
+          "$MS_ON_TOGGLE" "$slug" "${MS_STATE[$sidx]}"
+        fi
       fi
     elif [[ $key == "q" ]]; then
       local j
@@ -188,10 +203,6 @@ menu_multiselect() {
       return 255
     fi
 
-    for ((i = 0; i < lines_drawn; i++)); do
-      tput cuu1 2>/dev/null
-      tput el 2>/dev/null
-    done
     _ms_draw
   done
 }

@@ -14,18 +14,20 @@ source "$SCRIPT_ROOT/scripts/lib-platform.sh"
 source "$SCRIPT_ROOT/scripts/lib-firewall.sh"
 source "$SCRIPT_ROOT/scripts/lib-tools.sh"
 
-show_banner() {
-  clear
+print_banner_text() {
   cat "$SCRIPT_ROOT/scripts/banner.txt"
   echo
+}
+
+show_banner() {
+  clear
+  print_banner_text
 }
 
 show_banner
 
 main_menu() {
   while true; do
-    show_banner
-
     local core_options=("Run Claude Code" "Manage mounted folders" \
       "Firewall" "Tools" "Image" "Fix authorization link")
     local core_actions=("run" "mounts" "firewall" "tools" "image" "fix-oauth")
@@ -42,8 +44,10 @@ main_menu() {
     labels+=("0. Exit")
     local actions=("${core_actions[@]}" "exit")
 
+    MENU_HEADER="print_banner_text"
     menu_select "Choose an action:" "${labels[@]}"
     choice=$?
+    unset MENU_HEADER
 
     if [ "$choice" -eq 255 ]; then
       echo; echo "Bye!"; exit 0
