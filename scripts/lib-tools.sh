@@ -71,6 +71,7 @@ tools_enabled() {
 
 tools_set() {
   local slug="$1" value="$2"
+  _tools_is_known_slug "$slug" || return 1
   tools_conf_ensure
   if ! tools_parse_strict "$TOOLS_CONF"; then
     _tools_reset_to_all_off

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-trap 'tput cnorm 2>/dev/null; stty sane 2>/dev/null' EXIT INT TERM
+trap 'tput cnorm 2>/dev/null; tput rmcup 2>/dev/null; stty sane 2>/dev/null' EXIT INT TERM
 
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export SCRIPT_ROOT

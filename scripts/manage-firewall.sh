@@ -12,6 +12,14 @@ _fw_on_toggle() {
   firewall_set_service "$slug" "$onoff"
 }
 
+_fw_cleanup_abort() {
+  if [ "$_fw_entry_existed" = "1" ]; then
+    cp "$FIREWALL_CONF" "${FIREWALL_CONF}.tmp" && cat "$_fw_entry_snapshot" > "${FIREWALL_CONF}.tmp" && mv -f "${FIREWALL_CONF}.tmp" "$FIREWALL_CONF"
+  else
+    rm -f "$FIREWALL_CONF"
+  fi
+}
+
 _fw_manage_services() {
   local labels=()
   _fw_menu_slugs=()
@@ -34,26 +42,24 @@ _fw_manage_services() {
     fi
   done
 
-  local entry_existed=0
-  local entry_snapshot
-  entry_snapshot="$(mktemp)"
+  local _fw_entry_existed=0
+  local _fw_entry_snapshot
+  _fw_entry_snapshot="$(mktemp)"
   if [ -f "$FIREWALL_CONF" ]; then
-    entry_existed=1
-    cp "$FIREWALL_CONF" "$entry_snapshot"
+    _fw_entry_existed=1
+    cp "$FIREWALL_CONF" "$_fw_entry_snapshot"
   fi
 
   MS_SLUGS=("${_fw_menu_slugs[@]}")
   MS_ON_TOGGLE="_fw_on_toggle"
+  MENU_ON_INTERRUPT="_fw_cleanup_abort"
   menu_multiselect "Firewall services — $(firewall_active_count) active (Space toggles, Enter saves, q cancels)" "${labels[@]}"
   local rc=$?
   unset MS_ON_TOGGLE
+  unset MENU_ON_INTERRUPT
 
   if [ "$rc" -eq 255 ]; then
-    if [ "$entry_existed" = "1" ]; then
-      cp "$entry_snapshot" "$FIREWALL_CONF"
-    else
-      rm -f "$FIREWALL_CONF"
-    fi
+    _fw_cleanup_abort
   else
     for i in "${!_fw_menu_slugs[@]}"; do
       local onoff="off"
@@ -62,7 +68,7 @@ _fw_manage_services() {
     done
   fi
 
-  rm -f "$entry_snapshot"
+  rm -f "$_fw_entry_snapshot"
 }
 
 _fw_add_custom() {

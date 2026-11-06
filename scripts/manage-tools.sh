@@ -67,6 +67,19 @@ _tools_build_items() {
   fi
 
   TOOLS_ITEMS+=("@@← Back")
+
+  local row_count=0
+  local item
+  for item in "${TOOLS_ITEMS[@]}"; do
+    case "$item" in
+      "##"*|"@@"*) ;;
+      *) row_count=$((row_count + 1)) ;;
+    esac
+  done
+  if [ "$row_count" -ne "${#TOOLS_SLUGS[@]}" ]; then
+    echo "[tools] INTERNAL ERROR: TOOLS_ITEMS/TOOLS_SLUGS count mismatch ($row_count vs ${#TOOLS_SLUGS[@]}) — a tool row is missing its slug or vice versa." >&2
+    return 1
+  fi
 }
 
 _tools_revert_slug() {
@@ -120,7 +133,9 @@ _tools_on_toggle() {
     fi
   fi
 
-  tools_generate_docker_socket_override
+  if [ "$slug" = "DOCKER_SOCKET" ]; then
+    tools_generate_docker_socket_override
+  fi
 
   if [ "$slug" = "XCODE" ]; then
     local detect_msg
@@ -139,7 +154,21 @@ _tools_on_toggle() {
   fi
 }
 
-_tools_build_items
+_tools_cleanup_abort() {
+  cp "$TOOLS_CONF" "${TOOLS_CONF}.tmp" && cat "$_tools_entry_snapshot" > "${TOOLS_CONF}.tmp" && mv -f "${TOOLS_CONF}.tmp" "$TOOLS_CONF"
+  tools_generate_docker_socket_override
+  if platform_is_macos; then
+    if tools_enabled XCODE; then
+      xcode_bridge_is_running || xcode_bridge_start
+    else
+      xcode_bridge_stop 2>/dev/null
+    fi
+  fi
+}
+
+if ! _tools_build_items; then
+  exit 1
+fi
 
 MS_STATE=()
 for idx in "${!TOOLS_SLUGS[@]}"; do
@@ -156,12 +185,13 @@ MS_MESSAGE=""
 _tools_entry_snapshot="$(mktemp)"
 cp "$TOOLS_CONF" "$_tools_entry_snapshot"
 
+MENU_ON_INTERRUPT="_tools_cleanup_abort"
 menu_multiselect "Tools" "${TOOLS_ITEMS[@]}"
 rc=$?
+unset MENU_ON_INTERRUPT
 
 if [ "$rc" -eq 255 ]; then
-  cp "$_tools_entry_snapshot" "$TOOLS_CONF"
-  tools_generate_docker_socket_override
+  _tools_cleanup_abort
   rm -f "$_tools_entry_snapshot"
   echo
   echo "Tools settings were not changed."

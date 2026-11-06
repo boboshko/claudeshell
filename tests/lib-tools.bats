@@ -117,6 +117,23 @@ teardown() {
   [[ "$output" == *"SOCKET_SET=unset"* ]]
 }
 
+@test "tools_set rejects an unknown slug and leaves tools.conf untouched" {
+  run bash -c "
+    source '$SCRIPT_ROOT/scripts/lib-tools.sh'
+    tools_conf_ensure
+    before=\"\$(md5sum \"\$TOOLS_CONF\")\"
+    tools_set NOT_A_REAL_SLUG on
+    echo \"RC=\$?\"
+    after=\"\$(md5sum \"\$TOOLS_CONF\")\"
+    [ \"\$before\" = \"\$after\" ] && echo UNCHANGED || echo CHANGED
+    if grep -q NOT_A_REAL_SLUG \"\$TOOLS_CONF\"; then echo SLUG_LEAKED; else echo SLUG_ABSENT; fi
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"RC=1"* ]]
+  [[ "$output" == *"UNCHANGED"* ]]
+  [[ "$output" == *"SLUG_ABSENT"* ]]
+}
+
 @test "tools_generate_docker_socket_override writes the override only when the toggle is on" {
   run bash -c "
     source '$SCRIPT_ROOT/scripts/lib-tools.sh'

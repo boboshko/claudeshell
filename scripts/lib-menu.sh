@@ -1,5 +1,15 @@
 #!/bin/bash
 
+_menu_on_interrupt() {
+  tput cnorm 2>/dev/null
+  tput rmcup 2>/dev/null
+  unset -f _menu_select_draw_frame _menu_multiselect_draw_frame
+  [ -n "${MENU_ON_INTERRUPT:-}" ] && "$MENU_ON_INTERRUPT"
+  unset MENU_ON_INTERRUPT
+  trap - INT TERM HUP QUIT
+  kill -s TERM "$$"
+}
+
 menu_select() {
   local title="$1"
   shift
@@ -10,8 +20,9 @@ menu_select() {
 
   tput smcup 2>/dev/null
   tput civis 2>/dev/null
+  trap '_menu_on_interrupt' INT TERM HUP QUIT
 
-  _draw_menu() {
+  _menu_select_draw_frame() {
     tput cup 0 0 2>/dev/null
     tput ed 2>/dev/null
     [ -n "${MENU_HEADER:-}" ] && "$MENU_HEADER"
@@ -28,12 +39,15 @@ menu_select() {
     echo "  ↑/↓ — navigate, Enter — select, q — quit"
   }
 
-  _draw_menu
+  _menu_select_draw_frame
 
   while true; do
     IFS= read -rsn1 key
 
     if [[ -z $key || $key == $'\r' || $key == $'\n' ]]; then
+      trap - INT TERM HUP QUIT
+      unset -f _menu_select_draw_frame
+      unset MENU_ON_INTERRUPT
       tput cnorm 2>/dev/null
       tput rmcup 2>/dev/null
       return $selected
@@ -48,12 +62,15 @@ menu_select() {
           ;;
       esac
     elif [[ $key == "q" ]]; then
+      trap - INT TERM HUP QUIT
+      unset -f _menu_select_draw_frame
+      unset MENU_ON_INTERRUPT
       tput cnorm 2>/dev/null
       tput rmcup 2>/dev/null
       return 255
     fi
 
-    _draw_menu
+    _menu_select_draw_frame
   done
 }
 
@@ -114,8 +131,9 @@ menu_multiselect() {
 
   tput smcup 2>/dev/null
   tput civis 2>/dev/null
+  trap '_menu_on_interrupt' INT TERM HUP QUIT
 
-  _ms_draw() {
+  _menu_multiselect_draw_frame() {
     tput cup 0 0 2>/dev/null
     tput ed 2>/dev/null
     [ -n "${MENU_HEADER:-}" ] && "$MENU_HEADER"
@@ -152,13 +170,16 @@ menu_multiselect() {
     fi
   }
 
-  _ms_draw
+  _menu_multiselect_draw_frame
 
   local key
   while true; do
     IFS= read -rsn1 key
 
     if [[ -z $key || $key == $'\r' || $key == $'\n' ]]; then
+      trap - INT TERM HUP QUIT
+      unset -f _menu_multiselect_draw_frame
+      unset MENU_ON_INTERRUPT
       tput cnorm 2>/dev/null
       tput rmcup 2>/dev/null
       return 0
@@ -195,8 +216,12 @@ menu_multiselect() {
           MS_STATE[$sidx]="1"
         fi
         if [ -n "${MS_ON_TOGGLE:-}" ]; then
-          local slug="${MS_SLUGS[$sidx]:-$sidx}"
-          "$MS_ON_TOGGLE" "$slug" "${MS_STATE[$sidx]}"
+          if [ -n "${MS_SLUGS[$sidx]+set}" ]; then
+            local slug="${MS_SLUGS[$sidx]}"
+            "$MS_ON_TOGGLE" "$slug" "${MS_STATE[$sidx]}"
+          else
+            echo "[menu] WARNING: no MS_SLUGS entry for index $sidx — MS_ON_TOGGLE not called." >&2
+          fi
         fi
       fi
     elif [[ $key == "q" ]]; then
@@ -204,11 +229,14 @@ menu_multiselect() {
       for ((j = 0; j < ${#MS_STATE[@]}; j++)); do
         MS_STATE[$j]="${entry_state[$j]}"
       done
+      trap - INT TERM HUP QUIT
+      unset -f _menu_multiselect_draw_frame
+      unset MENU_ON_INTERRUPT
       tput cnorm 2>/dev/null
       tput rmcup 2>/dev/null
       return 255
     fi
 
-    _ms_draw
+    _menu_multiselect_draw_frame
   done
 }
