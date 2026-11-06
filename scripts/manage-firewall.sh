@@ -14,7 +14,7 @@ _fw_on_toggle() {
 
 _fw_cleanup_abort() {
   if [ "$_fw_entry_existed" = "1" ]; then
-    cp "$FIREWALL_CONF" "${FIREWALL_CONF}.tmp" && cat "$_fw_entry_snapshot" > "${FIREWALL_CONF}.tmp" && mv -f "${FIREWALL_CONF}.tmp" "$FIREWALL_CONF"
+    cp -p "$FIREWALL_CONF" "${FIREWALL_CONF}.tmp" && cat "$_fw_entry_snapshot" > "${FIREWALL_CONF}.tmp" && mv -f "${FIREWALL_CONF}.tmp" "$FIREWALL_CONF"
   else
     rm -f "$FIREWALL_CONF"
   fi

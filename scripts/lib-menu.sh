@@ -6,7 +6,7 @@ _menu_on_interrupt() {
   unset -f _menu_select_draw_frame _menu_multiselect_draw_frame
   [ -n "${MENU_ON_INTERRUPT:-}" ] && "$MENU_ON_INTERRUPT"
   unset MENU_ON_INTERRUPT
-  trap - INT TERM HUP QUIT
+  trap - INT TERM HUP QUIT PIPE
   kill -s TERM "$$"
 }
 
@@ -20,7 +20,7 @@ menu_select() {
 
   tput smcup 2>/dev/null
   tput civis 2>/dev/null
-  trap '_menu_on_interrupt' INT TERM HUP QUIT
+  trap '_menu_on_interrupt' INT TERM HUP QUIT PIPE
 
   _menu_select_draw_frame() {
     tput cup 0 0 2>/dev/null
@@ -45,7 +45,7 @@ menu_select() {
     IFS= read -rsn1 key
 
     if [[ -z $key || $key == $'\r' || $key == $'\n' ]]; then
-      trap - INT TERM HUP QUIT
+      trap - INT TERM HUP QUIT PIPE
       unset -f _menu_select_draw_frame
       unset MENU_ON_INTERRUPT
       tput cnorm 2>/dev/null
@@ -62,7 +62,7 @@ menu_select() {
           ;;
       esac
     elif [[ $key == "q" ]]; then
-      trap - INT TERM HUP QUIT
+      trap - INT TERM HUP QUIT PIPE
       unset -f _menu_select_draw_frame
       unset MENU_ON_INTERRUPT
       tput cnorm 2>/dev/null
@@ -131,7 +131,7 @@ menu_multiselect() {
 
   tput smcup 2>/dev/null
   tput civis 2>/dev/null
-  trap '_menu_on_interrupt' INT TERM HUP QUIT
+  trap '_menu_on_interrupt' INT TERM HUP QUIT PIPE
 
   _menu_multiselect_draw_frame() {
     tput cup 0 0 2>/dev/null
@@ -177,7 +177,7 @@ menu_multiselect() {
     IFS= read -rsn1 key
 
     if [[ -z $key || $key == $'\r' || $key == $'\n' ]]; then
-      trap - INT TERM HUP QUIT
+      trap - INT TERM HUP QUIT PIPE
       unset -f _menu_multiselect_draw_frame
       unset MENU_ON_INTERRUPT
       tput cnorm 2>/dev/null
@@ -229,7 +229,7 @@ menu_multiselect() {
       for ((j = 0; j < ${#MS_STATE[@]}; j++)); do
         MS_STATE[$j]="${entry_state[$j]}"
       done
-      trap - INT TERM HUP QUIT
+      trap - INT TERM HUP QUIT PIPE
       unset -f _menu_multiselect_draw_frame
       unset MENU_ON_INTERRUPT
       tput cnorm 2>/dev/null

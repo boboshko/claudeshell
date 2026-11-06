@@ -10,63 +10,66 @@ fi
 
 tools_conf_ensure
 
+_tools_add() {
+  local label="$1" slug="$2"
+  if ! _tools_is_known_slug "$slug"; then
+    echo "[tools] INTERNAL ERROR: _tools_add called with unknown slug '$slug' (label '$label') — check argument order." >&2
+    exit 1
+  fi
+  TOOLS_ITEMS+=("$label")
+  TOOLS_SLUGS+=("$slug")
+  if tools_enabled "$slug"; then
+    MS_STATE+=("1")
+  else
+    MS_STATE+=("0")
+  fi
+}
+
 _tools_build_items() {
   TOOLS_ITEMS=()
   TOOLS_SLUGS=()
+  MS_STATE=()
 
   TOOLS_ITEMS+=("##Development")
-  TOOLS_ITEMS+=("Docker CLI")
-  TOOLS_SLUGS+=("DOCKER_CLI")
-  TOOLS_ITEMS+=("Docker Compose")
-  TOOLS_SLUGS+=("DOCKER_COMPOSE")
-  TOOLS_ITEMS+=("Docker socket access")
-  TOOLS_SLUGS+=("DOCKER_SOCKET")
-  TOOLS_ITEMS+=("Python")
-  TOOLS_SLUGS+=("PYTHON")
-  TOOLS_ITEMS+=("Go")
-  TOOLS_SLUGS+=("GO")
-  TOOLS_ITEMS+=("Rust")
-  TOOLS_SLUGS+=("RUST")
-  TOOLS_ITEMS+=("Java")
-  TOOLS_SLUGS+=("JAVA")
-  TOOLS_ITEMS+=("Make")
-  TOOLS_SLUGS+=("MAKE")
-  TOOLS_ITEMS+=("CMake")
-  TOOLS_SLUGS+=("CMAKE")
-  TOOLS_ITEMS+=("GCC/Clang")
-  TOOLS_SLUGS+=("BUILD_ESSENTIAL")
+  _tools_add "Docker CLI" "DOCKER_CLI"
+  _tools_add "Docker Compose" "DOCKER_COMPOSE"
+  _tools_add "Docker socket access" "DOCKER_SOCKET"
+  _tools_add "Python" "PYTHON"
+  _tools_add "Go" "GO"
+  _tools_add "Rust" "RUST"
+  _tools_add "Java" "JAVA"
+  _tools_add "Make" "MAKE"
+  _tools_add "CMake" "CMAKE"
+  _tools_add "GCC/Clang" "BUILD_ESSENTIAL"
 
   TOOLS_ITEMS+=("##Version Control")
-  TOOLS_ITEMS+=("GitHub CLI")
-  TOOLS_SLUGS+=("GH_CLI")
+  _tools_add "GitHub CLI" "GH_CLI"
+
+  TOOLS_ITEMS+=("##Databases")
+  _tools_add "PostgreSQL" "POSTGRES"
+  _tools_add "MongoDB" "MONGODB"
+  _tools_add "Redis" "REDIS"
 
   TOOLS_ITEMS+=("##Package Managers")
-  TOOLS_ITEMS+=("pnpm")
-  TOOLS_SLUGS+=("PNPM")
-  TOOLS_ITEMS+=("Bun")
-  TOOLS_SLUGS+=("BUN")
-  TOOLS_ITEMS+=("uv")
-  TOOLS_SLUGS+=("UV")
+  _tools_add "pnpm" "PNPM"
+  _tools_add "Bun" "BUN"
+  _tools_add "uv" "UV"
 
   TOOLS_ITEMS+=("##Utilities")
-  TOOLS_ITEMS+=("SSH client")
-  TOOLS_SLUGS+=("SSH_CLIENT")
-  TOOLS_ITEMS+=("rsync")
-  TOOLS_SLUGS+=("RSYNC")
-  TOOLS_ITEMS+=("jq")
-  TOOLS_SLUGS+=("JQ")
-  TOOLS_ITEMS+=("yq")
-  TOOLS_SLUGS+=("YQ")
-  TOOLS_ITEMS+=("wget")
-  TOOLS_SLUGS+=("WGET")
+  _tools_add "SSH client" "SSH_CLIENT"
+  _tools_add "rsync" "RSYNC"
+  _tools_add "jq" "JQ"
+  _tools_add "yq" "YQ"
+  _tools_add "wget" "WGET"
 
   if platform_is_macos; then
     TOOLS_ITEMS+=("##macOS")
-    TOOLS_ITEMS+=("Xcode")
-    TOOLS_SLUGS+=("XCODE")
+    _tools_add "Xcode" "XCODE"
   fi
 
   TOOLS_ITEMS+=("@@← Back")
+
+  unset -f _tools_add
 
   local row_count=0
   local item
@@ -155,7 +158,7 @@ _tools_on_toggle() {
 }
 
 _tools_cleanup_abort() {
-  cp "$TOOLS_CONF" "${TOOLS_CONF}.tmp" && cat "$_tools_entry_snapshot" > "${TOOLS_CONF}.tmp" && mv -f "${TOOLS_CONF}.tmp" "$TOOLS_CONF"
+  cp -p "$TOOLS_CONF" "${TOOLS_CONF}.tmp" && cat "$_tools_entry_snapshot" > "${TOOLS_CONF}.tmp" && mv -f "${TOOLS_CONF}.tmp" "$TOOLS_CONF"
   tools_generate_docker_socket_override
   if platform_is_macos; then
     if tools_enabled XCODE; then
@@ -170,14 +173,6 @@ if ! _tools_build_items; then
   exit 1
 fi
 
-MS_STATE=()
-for idx in "${!TOOLS_SLUGS[@]}"; do
-  if tools_enabled "${TOOLS_SLUGS[$idx]}"; then
-    MS_STATE[$idx]="1"
-  else
-    MS_STATE[$idx]="0"
-  fi
-done
 MS_SLUGS=("${TOOLS_SLUGS[@]}")
 MS_ON_TOGGLE="_tools_on_toggle"
 MS_MESSAGE=""

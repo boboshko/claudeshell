@@ -138,3 +138,28 @@ write_conf() {
   run firewall_service_enabled npm
   [ "$status" -eq 0 ]
 }
+
+@test "REGRESSION: firewall_set_service preserves firewall.conf's existing permission bits" {
+  firewall_conf_ensure
+  chmod 644 "$FIREWALL_CONF"
+  firewall_set_service npm off
+  mode="$(stat -c '%a' "$FIREWALL_CONF")"
+  [ "$mode" = "644" ]
+}
+
+@test "REGRESSION: firewall_set_mode preserves firewall.conf's existing permission bits" {
+  firewall_conf_ensure
+  chmod 644 "$FIREWALL_CONF"
+  firewall_set_mode disabled
+  mode="$(stat -c '%a' "$FIREWALL_CONF")"
+  [ "$mode" = "644" ]
+}
+
+@test "REGRESSION: firewall_custom_remove preserves firewall.conf's existing permission bits" {
+  firewall_conf_ensure
+  firewall_custom_add 10.0.0.0/24
+  chmod 644 "$FIREWALL_CONF"
+  firewall_custom_remove 1
+  mode="$(stat -c '%a' "$FIREWALL_CONF")"
+  [ "$mode" = "644" ]
+}

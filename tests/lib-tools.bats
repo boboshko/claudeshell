@@ -14,7 +14,7 @@ teardown() {
 @test "tools_conf_ensure creates an all-off file when missing" {
   run bash -c "source '$SCRIPT_ROOT/scripts/lib-tools.sh'; tools_conf_ensure; grep -c '=off' \"\$TOOLS_CONF\"; grep -c '=on' \"\$TOOLS_CONF\" || true"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"20"* ]]
+  [[ "$output" == *"23"* ]]
 }
 
 @test "tools_parse_strict accepts a valid file with comments and blank lines" {

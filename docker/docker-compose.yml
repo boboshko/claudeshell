@@ -16,6 +16,9 @@ services:
         TOOL_CMAKE: ${TOOL_CMAKE:-0}
         TOOL_BUILD_ESSENTIAL: ${TOOL_BUILD_ESSENTIAL:-0}
         TOOL_GH_CLI: ${TOOL_GH_CLI:-0}
+        TOOL_POSTGRES: ${TOOL_POSTGRES:-0}
+        TOOL_MONGODB: ${TOOL_MONGODB:-0}
+        TOOL_REDIS: ${TOOL_REDIS:-0}
         TOOL_PNPM: ${TOOL_PNPM:-0}
         TOOL_BUN: ${TOOL_BUN:-0}
         TOOL_UV: ${TOOL_UV:-0}

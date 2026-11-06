@@ -212,6 +212,7 @@ _firewall_set_key() {
   firewall_conf_ensure
   if grep -q "^${key}=" "$FIREWALL_CONF" 2>/dev/null; then
     tmp="$(mktemp "${FIREWALL_CONF}.XXXXXX")"
+    chmod "$(stat -c '%a' "$FIREWALL_CONF" 2>/dev/null || stat -f '%Lp' "$FIREWALL_CONF" 2>/dev/null)" "$tmp" 2>/dev/null || true
     sed "s|^${key}=.*|${key}=${value}|" "$FIREWALL_CONF" > "$tmp"
     mv "$tmp" "$FIREWALL_CONF"
   else
@@ -271,6 +272,7 @@ firewall_custom_remove() {
   fi
 
   tmp="$(mktemp "${FIREWALL_CONF}.XXXXXX")"
+  chmod "$(stat -c '%a' "$FIREWALL_CONF" 2>/dev/null || stat -f '%Lp' "$FIREWALL_CONF" 2>/dev/null)" "$tmp" 2>/dev/null || true
   grep -v '^CUSTOM_[0-9][0-9]*=' "$FIREWALL_CONF" > "$tmp" || true
 
   for i in "${!customs[@]}"; do
