@@ -61,7 +61,7 @@ main_menu() {
           echo "Firewall: Disabled — unrestricted egress. Change this in the Firewall menu."
           export DISABLE_FIREWALL=1
         else
-          echo "Firewall: Recommended ($(firewall_active_count) service(s) active). Change this in the Firewall menu."
+          echo "Firewall: Recommended. Change this in the Firewall menu."
           unset DISABLE_FIREWALL
         fi
         echo

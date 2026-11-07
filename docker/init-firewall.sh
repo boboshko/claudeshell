@@ -4,15 +4,8 @@ set -euo pipefail
 echo "[init-firewall] Setting up the firewall..."
 
 if ! source /etc/claude-shell/lib-firewall.sh 2>/dev/null; then
-  echo "[init-firewall] WARNING: /etc/claude-shell/lib-firewall.sh could not be loaded — falling back to curated Recommended defaults in-process."
+  echo "[init-firewall] WARNING: /etc/claude-shell/lib-firewall.sh could not be loaded — enforcing the fixed Recommended allow-list."
   firewall_mode() { echo "recommended"; }
-  firewall_service_enabled() {
-    case "$1" in
-      npm|github|gitlab|pypi|dockerhub|rust) return 0 ;;
-      *) return 1 ;;
-    esac
-  }
-  firewall_custom_list() { :; }
 fi
 
 DOCKER_DNS_RULES="$(iptables-save 2>/dev/null | grep '127.0.0.11' || true)"
@@ -61,17 +54,28 @@ ANTHROPIC_DOMAINS=(
   "api.statsig.com"
 )
 
-declare -A SERVICE_DOMAINS=(
-  [npm]="registry.npmjs.org npmjs.org www.npmjs.org"
-  [github]="github.com api.github.com codeload.github.com raw.githubusercontent.com objects.githubusercontent.com"
-  [gitlab]="gitlab.com registry.gitlab.com assets.gitlab-static.net"
-  [pypi]="pypi.org files.pythonhosted.org"
-  [dockerhub]="registry-1.docker.io auth.docker.io index.docker.io production.cloudflare.docker.com"
-  [huggingface]="huggingface.co cdn-lfs.huggingface.co cdn-lfs-us-1.huggingface.co"
-  [microsoft]="api.nuget.org nuget.org marketplace.visualstudio.com vscode.blob.core.windows.net dotnet.microsoft.com download.visualstudio.microsoft.com"
-  [apple]="developer.apple.com swift.org download.swift.org"
-  [go]="proxy.golang.org sum.golang.org"
-  [rust]="static.rust-lang.org crates.io static.crates.io index.crates.io"
+RECOMMENDED_DOMAINS=(
+  "registry.npmjs.org"
+  "npmjs.org"
+  "www.npmjs.org"
+  "github.com"
+  "api.github.com"
+  "codeload.github.com"
+  "raw.githubusercontent.com"
+  "objects.githubusercontent.com"
+  "gitlab.com"
+  "registry.gitlab.com"
+  "assets.gitlab-static.net"
+  "pypi.org"
+  "files.pythonhosted.org"
+  "registry-1.docker.io"
+  "auth.docker.io"
+  "index.docker.io"
+  "production.cloudflare.docker.com"
+  "static.rust-lang.org"
+  "crates.io"
+  "static.crates.io"
+  "index.crates.io"
 )
 
 for cidr in "${ANTHROPIC_RANGES[@]}"; do
@@ -82,34 +86,20 @@ ACTIVE_DOMAINS=("${ANTHROPIC_DOMAINS[@]}")
 GITHUB_ACTIVE=0
 
 if [ "$(firewall_mode)" = "recommended" ]; then
-  for slug in "${!SERVICE_DOMAINS[@]}"; do
-    if firewall_service_enabled "$slug"; then
-      ACTIVE_DOMAINS+=(${SERVICE_DOMAINS[$slug]})
-      [ "$slug" = "github" ] && GITHUB_ACTIVE=1
-    fi
-  done
-  while IFS= read -r custom; do
-    [ -n "$custom" ] && ACTIVE_DOMAINS+=("$custom")
-  done < <(firewall_custom_list)
+  ACTIVE_DOMAINS+=("${RECOMMENDED_DOMAINS[@]}")
+  GITHUB_ACTIVE=1
 fi
 
 refresh_allowed_domains() {
   for entry in "${ACTIVE_DOMAINS[@]}"; do
-    case "$entry" in
-      */*)
-        ipset add allowed-domains "$entry" 2>/dev/null || true
-        ;;
-      *)
-        ips="$(dig +short "$entry" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)"
-        if [ -z "$ips" ]; then
-          echo "[init-firewall] WARNING: could not resolve $entry, skipping"
-          continue
-        fi
-        while IFS= read -r ip; do
-          ipset add allowed-domains "$ip" 2>/dev/null || true
-        done <<< "$ips"
-        ;;
-    esac
+    ips="$(dig +short "$entry" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)"
+    if [ -z "$ips" ]; then
+      echo "[init-firewall] WARNING: could not resolve $entry, skipping"
+      continue
+    fi
+    while IFS= read -r ip; do
+      ipset add allowed-domains "$ip" 2>/dev/null || true
+    done <<< "$ips"
   done
 
   if [ "$GITHUB_ACTIVE" = "1" ]; then

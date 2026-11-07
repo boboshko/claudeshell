@@ -18,9 +18,31 @@ write_conf() {
   printf '%s\n' "$@" > "$FIREWALL_CONF"
 }
 
-@test "conf_ensure creates curated Recommended defaults when missing" {
+# A file as the previous version could have written it.
+write_legacy_conf() {
+  write_conf "MODE=$1" \
+    "SERVICE_NPM=on" "SERVICE_GITHUB=off" "SERVICE_GITLAB=on" "SERVICE_PYPI=on" \
+    "SERVICE_DOCKERHUB=on" "SERVICE_HUGGINGFACE=off" "SERVICE_MICROSOFT=off" \
+    "SERVICE_APPLE=off" "SERVICE_GO=on" "SERVICE_RUST=on" \
+    "CUSTOM_1=example.com" "CUSTOM_2=10.0.0.0/24"
+}
+
+# Checks the result of `run firewall_mode`: one warning, then exactly "recommended".
+assert_warned_recommended() {
+  [ "$status" -eq 0 ]
+  [ "${#lines[@]}" -eq 2 ]
+  case "${lines[0]}" in
+    *WARNING*) ;;
+    *) return 1 ;;
+  esac
+  [ "${lines[1]}" = "recommended" ]
+}
+
+@test "conf_ensure creates a file holding only MODE=recommended when missing" {
   firewall_conf_ensure
   [ -f "$FIREWALL_CONF" ]
+  printf 'MODE=recommended\n' > "$TEST_TMP/expected"
+  cmp "$TEST_TMP/expected" "$FIREWALL_CONF"
   run firewall_mode
   [ "$status" -eq 0 ]
   [ "$output" = "recommended" ]
@@ -56,6 +78,32 @@ write_conf() {
   [ "$status" -eq 1 ]
 }
 
+@test "SECURITY: a SERVICE_* key containing a command substitution is rejected without being executed" {
+  write_conf "MODE=recommended" 'SERVICE_NPM$(touch /tmp/fw_bats_pwned)=on'
+  rm -f /tmp/fw_bats_pwned
+  run firewall_parse_strict "$FIREWALL_CONF"
+  [ "$status" -eq 1 ]
+  [ ! -e /tmp/fw_bats_pwned ]
+}
+
+@test "SECURITY: a SERVICE_* key containing a shell metacharacter (semicolon) is rejected without being executed" {
+  write_conf "MODE=recommended" 'SERVICE_NPM;touch /tmp/fw_bats_pwned2=on'
+  rm -f /tmp/fw_bats_pwned2
+  run firewall_parse_strict "$FIREWALL_CONF"
+  [ "$status" -eq 1 ]
+  [ ! -e /tmp/fw_bats_pwned2 ]
+}
+
+@test "SECURITY: MODE=disabled plus a CUSTOM value containing a command substitution stays Recommended and is not executed" {
+  local marker="$TEST_TMP/pwned"
+  write_conf "MODE=disabled" "CUSTOM_1=\$(touch $marker)"
+  run firewall_parse_strict "$FIREWALL_CONF"
+  [ "$status" -eq 1 ]
+  run firewall_mode
+  assert_warned_recommended
+  [ ! -e "$marker" ]
+}
+
 @test "a bad CUSTOM value (neither domain nor CIDR) rejects the whole file" {
   write_conf "MODE=recommended" "CUSTOM_1=not a domain!!"
   run firewall_parse_strict "$FIREWALL_CONF"
@@ -77,22 +125,36 @@ write_conf() {
 @test "missing file falls back to Recommended defaults, never disabled" {
   rm -f "$FIREWALL_CONF"
   run firewall_mode
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"recommended"* ]]
+  assert_warned_recommended
 }
 
 @test "unreadable file falls back to Recommended defaults, never disabled" {
+  [ "$(id -u)" -ne 0 ] || skip "root can read a mode 000 file"
   write_conf "MODE=disabled"
   chmod 000 "$FIREWALL_CONF"
   run firewall_mode
-  [[ "$output" == *"recommended"* ]]
   chmod 644 "$FIREWALL_CONF"
+  assert_warned_recommended
 }
 
 @test "malformed file falls back to Recommended defaults, never disabled" {
   write_conf "MODE=yolo"
   run firewall_mode
-  [[ "$output" == *"recommended"* ]]
+  assert_warned_recommended
+}
+
+@test "a file without MODE, or MODE=disabled plus any invalid line, falls back to Recommended with a warning" {
+  write_conf "SERVICE_NPM=on"
+  run firewall_mode
+  assert_warned_recommended
+
+  local bad
+  for bad in "FOO=bar" "not_an_assignment" "SERVICE_NPM=maybe" "SERVICE_NOTREAL=on" \
+    "CUSTOM_1=not a domain!!" "CUSTOM_0=example.com"; do
+    write_conf "MODE=disabled" "$bad"
+    run firewall_mode
+    assert_warned_recommended
+  done
 }
 
 @test "a valid file with MODE=disabled is honored exactly" {
@@ -101,65 +163,133 @@ write_conf() {
   [ "$output" = "disabled" ]
 }
 
-@test "firewall_set_mode and firewall_set_service persist and are read back" {
+@test "a legacy file keeps its MODE without any warning" {
+  local m
+  for m in disabled recommended; do
+    write_legacy_conf "$m"
+    run firewall_parse_strict "$FIREWALL_CONF"
+    [ "$status" -eq 0 ]
+    run firewall_mode
+    [ "$status" -eq 0 ]
+    [ "$output" = "$m" ]
+  done
+}
+
+@test "firewall_set_mode changes only the MODE line of a legacy file and keeps its permission bits" {
+  write_legacy_conf recommended
+  chmod 644 "$FIREWALL_CONF"
+  cp "$FIREWALL_CONF" "$TEST_TMP/before"
+  firewall_set_mode disabled
+  run diff "$TEST_TMP/before" "$FIREWALL_CONF"
+  [ "$status" -eq 1 ]
+  [ "$output" = $'1c1\n< MODE=recommended\n---\n> MODE=disabled' ]
+  mode="$(stat -c '%a' "$FIREWALL_CONF" 2>/dev/null || stat -f '%Lp' "$FIREWALL_CONF")"
+  [ "$mode" = "644" ]
+}
+
+@test "firewall_set_mode persists and is read back" {
   firewall_conf_ensure
   firewall_set_mode disabled
   run firewall_mode
   [ "$output" = "disabled" ]
-  firewall_set_service go on
-  run firewall_service_enabled go
-  [ "$status" -eq 0 ]
-}
-
-@test "firewall_custom_add rejects an invalid value" {
-  firewall_conf_ensure
-  run firewall_custom_add "; rm -rf /"
-  [ "$status" -eq 1 ]
-}
-
-@test "firewall_custom_add/remove round-trip" {
-  firewall_conf_ensure
-  firewall_custom_add example.com
-  firewall_custom_add 10.0.0.0/24
-  run firewall_custom_list
-  [ "$status" -eq 0 ]
-  firewall_custom_remove 1
-  run firewall_custom_list
-  [ "$output" = "10.0.0.0/24" ]
-}
-
-@test "firewall_restore_defaults resets to curated baseline" {
-  firewall_conf_ensure
-  firewall_set_mode disabled
-  firewall_set_service npm off
-  firewall_restore_defaults
+  firewall_set_mode recommended
   run firewall_mode
   [ "$output" = "recommended" ]
-  run firewall_service_enabled npm
-  [ "$status" -eq 0 ]
-}
-
-@test "REGRESSION: firewall_set_service preserves firewall.conf's existing permission bits" {
-  firewall_conf_ensure
-  chmod 644 "$FIREWALL_CONF"
-  firewall_set_service npm off
-  mode="$(stat -c '%a' "$FIREWALL_CONF")"
-  [ "$mode" = "644" ]
 }
 
 @test "REGRESSION: firewall_set_mode preserves firewall.conf's existing permission bits" {
   firewall_conf_ensure
   chmod 644 "$FIREWALL_CONF"
   firewall_set_mode disabled
-  mode="$(stat -c '%a' "$FIREWALL_CONF")"
+  mode="$(stat -c '%a' "$FIREWALL_CONF" 2>/dev/null || stat -f '%Lp' "$FIREWALL_CONF")"
   [ "$mode" = "644" ]
 }
 
-@test "REGRESSION: firewall_custom_remove preserves firewall.conf's existing permission bits" {
-  firewall_conf_ensure
-  firewall_custom_add 10.0.0.0/24
-  chmod 644 "$FIREWALL_CONF"
-  firewall_custom_remove 1
-  mode="$(stat -c '%a' "$FIREWALL_CONF")"
-  [ "$mode" = "644" ]
+# Lists the temp files _firewall_set_key could have left next to the config.
+leftover_temp_files() {
+  find "$TEST_TMP/scripts" -name 'firewall.conf.*'
+}
+
+@test "REGRESSION: a directory at the config path is rejected and falls back to Recommended under set -u" {
+  rm -f "$FIREWALL_CONF"
+  mkdir "$FIREWALL_CONF"
+  run firewall_parse_strict "$FIREWALL_CONF"
+  [ "$status" -eq 1 ]
+
+  # shellcheck disable=SC2016 # expanded by the inner bash, which receives $1 and $2
+  run bash -c 'set -euo pipefail
+    source "$1"
+    rc=0
+    firewall_parse_strict "$FIREWALL_CONF" 2>/dev/null || rc="$?"
+    [ "$rc" -eq 1 ]
+    m="$(firewall_mode 2>"$2")"
+    printf "%s\n" "$m"' _ "$LIB" "$TEST_TMP/stderr"
+  [ "$status" -eq 0 ]
+  [ "$output" = "recommended" ]
+  grep -q 'WARNING' "$TEST_TMP/stderr"
+}
+
+@test "REGRESSION: a read-only config is rewritten whole, stays read-only, and leaves no temp file" {
+  write_legacy_conf disabled
+  chmod 444 "$FIREWALL_CONF"
+  sed 's/^MODE=.*/MODE=recommended/' "$FIREWALL_CONF" > "$TEST_TMP/expected"
+  firewall_set_mode recommended
+  cmp "$TEST_TMP/expected" "$FIREWALL_CONF"
+  mode="$(stat -c '%a' "$FIREWALL_CONF" 2>/dev/null || stat -f '%Lp' "$FIREWALL_CONF")"
+  [ "$mode" = "444" ]
+  [ -z "$(leftover_temp_files)" ]
+}
+
+@test "REGRESSION: writing through a symlinked config takes the target's mode and leaves the target's mode alone" {
+  printf 'MODE=disabled\n' > "$TEST_TMP/real"
+  chmod 640 "$TEST_TMP/real"
+  ln -s "$TEST_TMP/real" "$FIREWALL_CONF"
+  firewall_set_mode recommended
+  run firewall_mode
+  [ "$output" = "recommended" ]
+  # -L here too, so this keeps working if the link is ever preserved.
+  mode="$(stat -L -c '%a' "$FIREWALL_CONF" 2>/dev/null || stat -L -f '%Lp' "$FIREWALL_CONF")"
+  [ "$mode" = "640" ]
+  mode="$(stat -c '%a' "$TEST_TMP/real" 2>/dev/null || stat -f '%Lp' "$TEST_TMP/real")"
+  [ "$mode" = "640" ]
+  [ -z "$(leftover_temp_files)" ]
+}
+
+@test "REGRESSION: a failed temp-file write keeps the config byte-for-byte, returns non-zero, and removes the temp file" {
+  write_legacy_conf disabled
+  chmod 444 "$FIREWALL_CONF"
+  cp -p "$FIREWALL_CONF" "$TEST_TMP/before"
+  # The stub leaves a partial write behind, as a full disk would.
+  # shellcheck disable=SC2329 # called by the library, not by the test body
+  sed() { echo partial; return 1; }
+  run firewall_set_mode recommended
+  unset -f sed
+  [ "$status" -ne 0 ]
+  cmp "$TEST_TMP/before" "$FIREWALL_CONF"
+  [ -z "$(leftover_temp_files)" ]
+}
+
+@test "REGRESSION: a failed mv keeps the config byte-for-byte, returns non-zero, and removes the temp file" {
+  write_legacy_conf disabled
+  cp -p "$FIREWALL_CONF" "$TEST_TMP/before"
+  # shellcheck disable=SC2329 # called by the library, not by the test body
+  mv() { return 1; }
+  run firewall_set_mode recommended
+  unset -f mv
+  [ "$status" -ne 0 ]
+  cmp "$TEST_TMP/before" "$FIREWALL_CONF"
+  [ -z "$(leftover_temp_files)" ]
+}
+
+@test "REGRESSION: a read-only directory keeps the config byte-for-byte and returns non-zero" {
+  [ "$(id -u)" -ne 0 ] || skip "root can create files in a mode 555 directory, so mktemp would not fail"
+  write_legacy_conf disabled
+  chmod 444 "$FIREWALL_CONF"
+  cp -p "$FIREWALL_CONF" "$TEST_TMP/before"
+  chmod 555 "$TEST_TMP/scripts"
+  run firewall_set_mode recommended
+  chmod 755 "$TEST_TMP/scripts"
+  [ "$status" -ne 0 ]
+  cmp "$TEST_TMP/before" "$FIREWALL_CONF"
+  [ -z "$(leftover_temp_files)" ]
 }
