@@ -29,8 +29,8 @@ show_banner
 main_menu() {
   while true; do
     local core_options=("Run Claude Code" "Manage mounted folders" \
-      "Firewall" "Tools" "Image" "Fix authorization link")
-    local core_actions=("run" "mounts" "firewall" "tools" "image" "fix-oauth")
+      "Firewall" "Tools" "Fix authorization link")
+    local core_actions=("run" "mounts" "firewall" "tools" "fix-oauth")
 
     if check_for_update; then
       core_options+=("Update to ${LATEST_VERSION}")
@@ -76,7 +76,6 @@ main_menu() {
       mounts) bash "$SCRIPT_ROOT/scripts/manage-mounts.sh" ;;
       firewall) bash "$SCRIPT_ROOT/scripts/manage-firewall.sh" ;;
       tools)    bash "$SCRIPT_ROOT/scripts/manage-tools.sh" ;;
-      image)    bash "$SCRIPT_ROOT/scripts/manage-image.sh" ;;
       fix-oauth) show_banner; bash "$SCRIPT_ROOT/scripts/fix-oauth-url.sh" ;;
       update)
         show_banner

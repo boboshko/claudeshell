@@ -194,7 +194,6 @@ else
   rm -f "$_tools_entry_snapshot"
   echo
   echo "Tools settings saved. Changes to installed tools take effect on the next"
-  echo "image build — this happens automatically next time you run Claude Code,"
-  echo "or via Image -> Rebuild Local Image."
+  echo "image build — this happens automatically next time you run Claude Code."
 fi
 press_enter_to_continue
