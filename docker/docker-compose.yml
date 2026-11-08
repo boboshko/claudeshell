@@ -6,6 +6,27 @@ services:
       args:
         CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION:-latest}
         CACHE_BUST: ${CACHE_BUST:-1}
+        TOOL_DOCKER_CLI: ${TOOL_DOCKER_CLI:-0}
+        TOOL_DOCKER_COMPOSE: ${TOOL_DOCKER_COMPOSE:-0}
+        TOOL_PYTHON: ${TOOL_PYTHON:-0}
+        TOOL_GO: ${TOOL_GO:-0}
+        TOOL_RUST: ${TOOL_RUST:-0}
+        TOOL_JAVA: ${TOOL_JAVA:-0}
+        TOOL_MAKE: ${TOOL_MAKE:-0}
+        TOOL_CMAKE: ${TOOL_CMAKE:-0}
+        TOOL_BUILD_ESSENTIAL: ${TOOL_BUILD_ESSENTIAL:-0}
+        TOOL_GH_CLI: ${TOOL_GH_CLI:-0}
+        TOOL_POSTGRES: ${TOOL_POSTGRES:-0}
+        TOOL_MONGODB: ${TOOL_MONGODB:-0}
+        TOOL_REDIS: ${TOOL_REDIS:-0}
+        TOOL_PNPM: ${TOOL_PNPM:-0}
+        TOOL_BUN: ${TOOL_BUN:-0}
+        TOOL_UV: ${TOOL_UV:-0}
+        TOOL_SSH_CLIENT: ${TOOL_SSH_CLIENT:-0}
+        TOOL_RSYNC: ${TOOL_RSYNC:-0}
+        TOOL_JQ: ${TOOL_JQ:-0}
+        TOOL_YQ: ${TOOL_YQ:-0}
+        TOOL_WGET: ${TOOL_WGET:-0}
     image: claude-shell:latest
     container_name: claude-shell
     hostname: claude-shell
@@ -24,10 +45,14 @@ services:
       - CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=${CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY:-1}
       - TZ=${TZ:-UTC}
       - DISABLE_FIREWALL=${DISABLE_FIREWALL:-0}
+      - XCODE_BRIDGE_ENABLED=${XCODE_BRIDGE_ENABLED:-0}
+      - XCODE_BRIDGE_PORT=${XCODE_BRIDGE_PORT:-47870}
 
     volumes:
       - claude-shell-config:/home/claude/.claude
       - claude-shell-npm-cache:/home/claude/.npm
+      - ../scripts/firewall.conf:/etc/claude-shell/firewall.conf:ro
+      - ../scripts/lib-firewall.sh:/etc/claude-shell/lib-firewall.sh:ro
 
     networks:
       - claude-shell

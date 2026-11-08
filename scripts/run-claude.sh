@@ -2,6 +2,9 @@
 set -e
 
 source "$SCRIPT_ROOT/scripts/lib-mounts.sh"
+source "$SCRIPT_ROOT/scripts/lib-firewall.sh"
+source "$SCRIPT_ROOT/scripts/lib-tools.sh"
+[ -f "$SCRIPT_ROOT/scripts/lib-platform.sh" ] && source "$SCRIPT_ROOT/scripts/lib-platform.sh"
 
 trap 'docker stop claude-shell >/dev/null 2>&1 || true' EXIT INT TERM HUP
 
@@ -26,6 +29,7 @@ compute_build_hash() {
     "$SCRIPT_ROOT/docker/entrypoint.sh" \
     "$SCRIPT_ROOT/docker/init-firewall.sh" \
     2>/dev/null
+    grep -Ev '^TOOL_(XCODE|DOCKER_SOCKET)=' "$SCRIPT_ROOT/scripts/tools.conf" 2>/dev/null || true
     echo "CLAUDE_CODE_VERSION=${claude_code_version:-latest}"
   } | _sha256
 }
@@ -33,6 +37,9 @@ compute_build_hash() {
 image_exists() {
   docker image inspect claude-shell:latest >/dev/null 2>&1
 }
+
+firewall_conf_ensure
+tools_conf_ensure
 
 current_hash="$(compute_build_hash)"
 stored_hash=""
@@ -57,7 +64,25 @@ cd "$SCRIPT_ROOT/docker"
 ENV_FLAG=()
 [ -f .env ] && ENV_FLAG=(--env-file .env)
 
+COMPOSE_FILES=(-f docker-compose.yml -f docker-compose.mounts.yml)
+[ -f docker-compose.docker-socket.yml ] && COMPOSE_FILES+=(-f docker-compose.docker-socket.yml)
+
+export XCODE_BRIDGE_ENABLED=0
+export XCODE_BRIDGE_PORT="${XCODE_BRIDGE_PORT:-47870}"
+if tools_enabled XCODE 2>/dev/null; then
+  XCODE_BRIDGE_ENABLED=1
+  if command -v platform_is_macos >/dev/null 2>&1 && platform_is_macos; then
+    bridge_lib="$SCRIPT_ROOT/scripts/platform/macos/lib-xcode-bridge.sh"
+    if [ -f "$bridge_lib" ]; then
+      source "$bridge_lib"
+      recorded_port="$(xcode_bridge_recorded_port 2>/dev/null || true)"
+      [ -n "$recorded_port" ] && XCODE_BRIDGE_PORT="$recorded_port"
+    fi
+  fi
+fi
+export XCODE_BRIDGE_ENABLED
+export XCODE_BRIDGE_PORT
+
 docker compose -p claude-shell "${ENV_FLAG[@]}" \
-  -f docker-compose.yml \
-  -f docker-compose.mounts.yml \
+  "${COMPOSE_FILES[@]}" \
   run --rm --name claude-shell claude-shell "${ADD_DIR_ARGS[@]}" "$@"

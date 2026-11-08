@@ -3,6 +3,11 @@ set -euo pipefail
 
 echo "[init-firewall] Setting up the firewall..."
 
+if ! source /etc/claude-shell/lib-firewall.sh 2>/dev/null; then
+  echo "[init-firewall] WARNING: /etc/claude-shell/lib-firewall.sh could not be loaded — enforcing the fixed Recommended allow-list."
+  firewall_mode() { echo "recommended"; }
+fi
+
 DOCKER_DNS_RULES="$(iptables-save 2>/dev/null | grep '127.0.0.11' || true)"
 
 iptables -F
@@ -36,15 +41,10 @@ done
 
 ipset create allowed-domains hash:net
 
-ANTHROPIC_STATIC_RANGES=(
+ANTHROPIC_RANGES=(
   "160.79.104.0/21"
 )
-
-for cidr in "${ANTHROPIC_STATIC_RANGES[@]}"; do
-  ipset add allowed-domains "$cidr" 2>/dev/null || true
-done
-
-ALLOWED_DOMAINS=(
+ANTHROPIC_DOMAINS=(
   "api.anthropic.com"
   "console.anthropic.com"
   "platform.claude.com"
@@ -52,6 +52,9 @@ ALLOWED_DOMAINS=(
   "statsig.anthropic.com"
   "statsig.com"
   "api.statsig.com"
+)
+
+RECOMMENDED_DOMAINS=(
   "registry.npmjs.org"
   "npmjs.org"
   "www.npmjs.org"
@@ -59,13 +62,39 @@ ALLOWED_DOMAINS=(
   "api.github.com"
   "codeload.github.com"
   "raw.githubusercontent.com"
+  "objects.githubusercontent.com"
+  "gitlab.com"
+  "registry.gitlab.com"
+  "assets.gitlab-static.net"
+  "pypi.org"
+  "files.pythonhosted.org"
+  "registry-1.docker.io"
+  "auth.docker.io"
+  "index.docker.io"
+  "production.cloudflare.docker.com"
+  "static.rust-lang.org"
+  "crates.io"
+  "static.crates.io"
+  "index.crates.io"
 )
 
+for cidr in "${ANTHROPIC_RANGES[@]}"; do
+  ipset add allowed-domains "$cidr" 2>/dev/null || true
+done
+
+ACTIVE_DOMAINS=("${ANTHROPIC_DOMAINS[@]}")
+GITHUB_ACTIVE=0
+
+if [ "$(firewall_mode)" = "recommended" ]; then
+  ACTIVE_DOMAINS+=("${RECOMMENDED_DOMAINS[@]}")
+  GITHUB_ACTIVE=1
+fi
+
 refresh_allowed_domains() {
-  for domain in "${ALLOWED_DOMAINS[@]}"; do
-    ips="$(dig +short "$domain" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)"
+  for entry in "${ACTIVE_DOMAINS[@]}"; do
+    ips="$(dig +short "$entry" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)"
     if [ -z "$ips" ]; then
-      echo "[init-firewall] WARNING: could not resolve $domain, skipping"
+      echo "[init-firewall] WARNING: could not resolve $entry, skipping"
       continue
     fi
     while IFS= read -r ip; do
@@ -73,12 +102,14 @@ refresh_allowed_domains() {
     done <<< "$ips"
   done
 
-  local github_meta
-  github_meta="$(curl -s --max-time 5 https://api.github.com/meta || true)"
-  if [ -n "$github_meta" ]; then
-    echo "$github_meta" | grep -oE '"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+"' | tr -d '"' | while read -r cidr; do
-      ipset add allowed-domains "$cidr" 2>/dev/null || true
-    done
+  if [ "$GITHUB_ACTIVE" = "1" ]; then
+    local github_meta
+    github_meta="$(curl -s --max-time 5 https://api.github.com/meta || true)"
+    if [ -n "$github_meta" ]; then
+      echo "$github_meta" | grep -oE '"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+"' | tr -d '"' | while read -r cidr; do
+        ipset add allowed-domains "$cidr" 2>/dev/null || true
+      done
+    fi
   fi
 }
 
@@ -89,7 +120,7 @@ iptables -A OUTPUT -m set --match-set allowed-domains dst -j ACCEPT
 iptables -A OUTPUT -j REJECT --reject-with icmp-admin-prohibited
 iptables -A INPUT -j REJECT --reject-with icmp-admin-prohibited
 
-echo "[init-firewall] Done. Egress restricted to an allow-list of ${#ALLOWED_DOMAINS[@]} domains + GitHub's ranges."
+echo "[init-firewall] Done. Egress restricted to an allow-list of ${#ACTIVE_DOMAINS[@]} domain(s)/CIDR(s)$( [ "$GITHUB_ACTIVE" = "1" ] && echo " + GitHub's ranges" )."
 
 (
   while true; do
