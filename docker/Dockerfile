@@ -20,7 +20,7 @@ ARG TOOL_DOCKER_CLI=0
 RUN if [ "$TOOL_DOCKER_CLI" = "1" ]; then \
       apt-get update && apt-get install -y --no-install-recommends gnupg && \
       install -m 0755 -d /etc/apt/keyrings && \
-      curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
+      curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --batch --yes --dearmor -o /etc/apt/keyrings/docker.gpg && \
       chmod a+r /etc/apt/keyrings/docker.gpg && \
       . /etc/os-release && \
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian ${VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list && \
@@ -32,7 +32,7 @@ ARG TOOL_DOCKER_COMPOSE=0
 RUN if [ "$TOOL_DOCKER_COMPOSE" = "1" ]; then \
       apt-get update && apt-get install -y --no-install-recommends gnupg && \
       install -m 0755 -d /etc/apt/keyrings && \
-      curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
+      curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --batch --yes --dearmor -o /etc/apt/keyrings/docker.gpg && \
       chmod a+r /etc/apt/keyrings/docker.gpg && \
       . /etc/os-release && \
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian ${VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list && \
@@ -108,7 +108,7 @@ ARG TOOL_MONGODB=0
 RUN if [ "$TOOL_MONGODB" = "1" ]; then \
       apt-get update && apt-get install -y --no-install-recommends gnupg && \
       install -m 0755 -d /usr/share/keyrings && \
-      curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg && \
+      curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg --batch --yes --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg && \
       chmod a+r /usr/share/keyrings/mongodb-server-7.0.gpg && \
       . /etc/os-release && \
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] https://repo.mongodb.org/apt/debian ${VERSION_CODENAME}/mongodb-org/7.0 main" > /etc/apt/sources.list.d/mongodb-org-7.0.list && \
