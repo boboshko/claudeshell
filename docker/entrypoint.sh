@@ -13,7 +13,12 @@ if [ "${DISABLE_FIREWALL:-0}" = "1" ]; then
 elif sudo /usr/local/bin/init-firewall.sh; then
   echo "[entrypoint] Firewall active: egress restricted to the allow-list."
 else
-  echo "[entrypoint] WARNING: firewall not started (missing NET_ADMIN/NET_RAW?). Egress is not restricted."
+  {
+    echo "[entrypoint] ERROR: firewall setup failed — Claude Code was not started."
+    echo "[entrypoint] Check that the container has the NET_ADMIN and NET_RAW capabilities (cap_add in docker/docker-compose.yml) and that iptables/ipset work on this Docker host. An [init-firewall] ERROR line above names the step that failed."
+    echo "[entrypoint] Fix the cause and run again, or select Firewall -> Disabled in the ClaudeShell menu to run with unrestricted egress."
+  } >&2
+  exit 1
 fi
 
 exec claude "$@"

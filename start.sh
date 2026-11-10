@@ -62,7 +62,7 @@ main_menu() {
           export DISABLE_FIREWALL=1
         else
           echo "Firewall: Recommended. Change this in the Firewall menu."
-          unset DISABLE_FIREWALL
+          export DISABLE_FIREWALL=0
         fi
         echo
         bash "$SCRIPT_ROOT/scripts/run-claude.sh"; rc=$?

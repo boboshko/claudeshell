@@ -1,5 +1,12 @@
 #!/bin/bash
-set -euo pipefail
+set -Eeuo pipefail
+
+on_err() {
+  local rc=$?
+  [ "$BASH_SUBSHELL" -eq 0 ] || return 0
+  echo "[init-firewall] ERROR: firewall setup failed at line $1: $2 (exit $rc)." >&2
+}
+trap 'on_err "$LINENO" "$BASH_COMMAND"' ERR
 
 echo "[init-firewall] Setting up the firewall..."
 

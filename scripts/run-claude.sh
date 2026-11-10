@@ -83,6 +83,18 @@ fi
 export XCODE_BRIDGE_ENABLED
 export XCODE_BRIDGE_PORT
 
+if [ "$(firewall_mode 2>/dev/null)" = "disabled" ]; then
+  DISABLE_FIREWALL=1
+else
+  DISABLE_FIREWALL=0
+fi
+export DISABLE_FIREWALL
+
+if [ -f .env ] && grep -Eq '^[[:space:]]*(export[[:space:]]+)?DISABLE_FIREWALL([^A-Za-z0-9_]|$)' .env; then
+  echo "[firewall] NOTE: the DISABLE_FIREWALL line in docker/.env is ignored — the Firewall menu decides." >&2
+fi
+
 docker compose -p claude-shell "${ENV_FLAG[@]}" \
   "${COMPOSE_FILES[@]}" \
-  run --rm --name claude-shell claude-shell "${ADD_DIR_ARGS[@]}" "$@"
+  run --rm --name claude-shell -e "DISABLE_FIREWALL=$DISABLE_FIREWALL" \
+  claude-shell "${ADD_DIR_ARGS[@]}" "$@"
