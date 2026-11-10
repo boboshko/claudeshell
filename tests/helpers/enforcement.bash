@@ -29,7 +29,11 @@ enf_setup() {
   mkdir -p "$HOME/.claude"
 
   # Defaults the stubs read from the environment; a test overrides them.
-  export CURL_BODY='{"ranges":["192.0.2.0/24"]}'
+  # Under the pass-2 key-scoped parser only CIDRs under git/api/web/packages are
+  # taken, so the default /meta body must sit under a WANTED key (git+api here =
+  # 2 CIDRs) for the happy path to actually add ranges. (The pass-1 default,
+  # {"ranges":[…]}, is under a non-wanted key and would now yield zero.)
+  export CURL_BODY='{"git":["192.0.2.0/24"],"api":["198.51.100.0/24"]}'
   export DIG_OUT='192.0.2.10'
   export SAVE_OUT=''
   unset FAIL_MATCH FAIL_RC SUDO_RC CLAUDE_RC || true
@@ -73,9 +77,12 @@ exit 0
 STUB
   chmod +x "$STUBS/dig"
 
-  # curl: prints $CURL_BODY (a JSON fragment with one CIDR by default).
+  # curl: logs its argv to $STUB_LOG (so the /meta fetch is orderable against the
+  # iptables/ipset lines) and prints $CURL_BODY (a JSON fragment with wanted-key
+  # CIDRs by default). Never reaches the network.
   cat > "$STUBS/curl" <<'STUB'
 #!/usr/bin/env bash
+printf 'curl %s\n' "$*" >> "$STUB_LOG"
 printf '%s' "${CURL_BODY:-}"
 exit 0
 STUB

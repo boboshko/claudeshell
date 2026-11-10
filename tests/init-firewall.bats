@@ -47,16 +47,188 @@ setup() {
   done
 }
 
-@test "BF6-AC2: a GitHub meta body with no CIDR fails the script with one named ERROR" {
-  enf_make_fw_copy recommended
-  enf_assert_stub_wins iptables ipset dig curl
+# --- BF-P2-AC2/AC3: the GitHub /meta enrichment is now BEST-EFFORT ---
+# This REPLACES the pass-1 "a GitHub meta body with no CIDR fails the script"
+# test, which asserted the now-obsolete abort-on-no-CIDR behaviour (item 7 made
+# the foreground fetch genuinely run, and the owner decision Q-B makes the
+# enrichment warn+continue so a transient GitHub blip cannot brick container
+# start). Named GitHub domains are already in the set; the 300 s loop retries.
 
-  run --separate-stderr env PATH="$ENF_PATH" CURL_BODY='{"x":1}' \
+@test "BF-P2-AC3: a no-wanted-CIDR /meta body WARNs and still EXITs 0 (best-effort), container not aborted" {
+  enf_make_fw_copy recommended
+  enf_assert_stub_wins iptables ipset dig curl iptables-save sleep
+
+  # a non-empty body with CIDRs only under NON-wanted keys (hooks/actions) -> the
+  # key-scoped parser emits nothing -> WARNING + exit 0, no abort.
+  run --separate-stderr env PATH="$ENF_PATH" \
+    CURL_BODY='{"hooks":["192.30.252.0/22"],"actions":["4.148.0.0/16"]}' \
     bash "$FW_UNDER_TEST"
 
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 0 ] || { echo "expected exit 0, got $status"; printf '%s\n' "$stderr"; return 1; }
+  [ "$(printf '%s\n' "$stderr" | grep -c '^\[init-firewall\] WARNING:')" -ge 1 ]
+  [ "$(printf '%s\n' "$stderr" | grep -c '^\[init-firewall\] ERROR:')" -eq 0 ]
+  [[ "$output" == *"Done."* ]]
+  [[ "$output" == *"not yet added; retrying"* ]]
+  [[ "$output" != *"GitHub range(s)"* ]]
+  enf_wait_log "sleep 300"
+  enf_assert_no_leftover
+}
+
+@test "BF-P2-AC3: an EMPTY /meta body WARNs and still EXITs 0 (best-effort)" {
+  enf_make_fw_copy recommended
+  enf_assert_stub_wins iptables ipset dig curl iptables-save sleep
+
+  run --separate-stderr env PATH="$ENF_PATH" CURL_BODY='' bash "$FW_UNDER_TEST"
+
+  [ "$status" -eq 0 ] || { echo "expected exit 0, got $status"; printf '%s\n' "$stderr"; return 1; }
+  [ "$(printf '%s\n' "$stderr" | grep -c '^\[init-firewall\] WARNING:')" -ge 1 ]
+  [ "$(printf '%s\n' "$stderr" | grep -c '^\[init-firewall\] ERROR:')" -eq 0 ]
+  [[ "$output" == *"Done."* ]]
+  [[ "$output" != *"GitHub range(s)"* ]]
+  enf_wait_log "sleep 300"
+  enf_assert_no_leftover
+}
+
+@test "BF-P2-AC3: a rate-limit JSON error /meta body (no CIDR) WARNs and still EXITs 0 (best-effort)" {
+  enf_make_fw_copy recommended
+  enf_assert_stub_wins iptables ipset dig curl iptables-save sleep
+
+  local ratelimit
+  ratelimit="$(cat "$REPO_ROOT/tests/fixtures/meta-ratelimit.json")"
+  run --separate-stderr env PATH="$ENF_PATH" CURL_BODY="$ratelimit" bash "$FW_UNDER_TEST"
+
+  [ "$status" -eq 0 ] || { echo "expected exit 0, got $status"; printf '%s\n' "$stderr"; return 1; }
+  [ "$(printf '%s\n' "$stderr" | grep -c '^\[init-firewall\] WARNING:')" -ge 1 ]
+  [ "$(printf '%s\n' "$stderr" | grep -c '^\[init-firewall\] ERROR:')" -eq 0 ]
+  [[ "$output" == *"Done."* ]]
+  [[ "$output" != *"GitHub range(s)"* ]]
+  enf_wait_log "sleep 300"
+  enf_assert_no_leftover
+}
+
+# --- BF-P2-AC2: /meta fetch ordering (item 7) ---
+
+@test "BF-P2-AC2: set-match ACCEPT and both REJECT rules are emitted BEFORE the first api.github.com/meta curl; REJECT are the last iptables lines; no iptables after the curl" {
+  enf_make_fw_copy recommended
+  enf_assert_stub_wins iptables ipset dig curl iptables-save sleep
+
+  run env PATH="$ENF_PATH" bash "$FW_UNDER_TEST"
+  [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+
+  local curl_line setrule_line reject_first reject_last
+  curl_line="$(grep -n 'api.github.com/meta' "$STUB_LOG" | head -1 | cut -d: -f1)"
+  [ -n "$curl_line" ] || { echo "no /meta curl logged"; cat "$STUB_LOG"; return 1; }
+
+  # set-match ACCEPT precedes the /meta curl
+  setrule_line="$(grep -n -- '-m set --match-set allowed-domains dst -j ACCEPT' "$STUB_LOG" | head -1 | cut -d: -f1)"
+  [ -n "$setrule_line" ] && [ "$setrule_line" -lt "$curl_line" ] \
+    || { echo "set-match ACCEPT ($setrule_line) not before /meta curl ($curl_line)"; cat "$STUB_LOG"; return 1; }
+
+  # both REJECT rules precede the /meta curl
+  [ "$(grep -n 'REJECT' "$STUB_LOG" | awk -F: -v c="$curl_line" '$1 < c' | wc -l)" -eq 2 ] \
+    || { echo "expected both REJECT before the /meta curl"; cat "$STUB_LOG"; return 1; }
+
+  # the two REJECT lines are the last iptables lines logged
+  [ "$(grep '^iptables ' "$STUB_LOG" | tail -2 | grep -c 'REJECT')" -eq 2 ] \
+    || { echo "REJECT not the last two iptables lines"; cat "$STUB_LOG"; return 1; }
+
+  # no iptables call appears AFTER the /meta curl (step 3 issues only curl/ipset)
+  [ "$(grep -n '^iptables ' "$STUB_LOG" | awk -F: -v c="$curl_line" '$1 > c' | wc -l)" -eq 0 ] \
+    || { echo "an iptables line appears after the /meta curl"; cat "$STUB_LOG"; return 1; }
+
+  enf_wait_log "sleep 300"
+  enf_assert_no_leftover
+}
+
+# --- BF-P2-AC2/AC3: Done-line claims ranges only when N>0 ---
+
+@test "BF-P2-AC2: a good wanted-key /meta body adds CIDRs and the Done line claims '+ N GitHub range(s)'" {
+  enf_make_fw_copy recommended
+  enf_assert_stub_wins iptables ipset dig curl iptables-save sleep
+
+  # three CIDRs across wanted keys git/api/web
+  run env PATH="$ENF_PATH" \
+    CURL_BODY='{"git":["192.0.2.0/24"],"api":["198.51.100.0/24"],"web":["203.0.113.0/24"]}' \
+    bash "$FW_UNDER_TEST"
+  [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+  [[ "$output" == *"+ 3 GitHub range(s) from api.github.com/meta"* ]] \
+    || { echo "Done line did not claim 3 ranges: $output"; return 1; }
+  # the three wanted CIDRs were added to the ipset
+  [ "$(grep -c 'ipset add allowed-domains 192.0.2.0/24' "$STUB_LOG")" -ge 1 ]
+  [ "$(grep -c 'ipset add allowed-domains 198.51.100.0/24' "$STUB_LOG")" -ge 1 ]
+  [ "$(grep -c 'ipset add allowed-domains 203.0.113.0/24' "$STUB_LOG")" -ge 1 ]
+  enf_wait_log "sleep 300"
+  enf_assert_no_leftover
+}
+
+# --- BF-P2-AC6 (MINOR-1): a forged catch-all in a /meta body never reaches ipset ---
+
+@test "BF-P2-AC6: a good body with a mixed-in 0.0.0.0/0 adds only the legit CIDRs; Done count excludes the catch-all; no ipset add of 0.0.0.0/0" {
+  enf_make_fw_copy recommended
+  enf_assert_stub_wins iptables ipset dig curl iptables-save sleep
+
+  # two legitimate wanted-key CIDRs plus a forged catch-all mixed into git, and
+  # an actions catch-all that the key scope already excludes.
+  run env PATH="$ENF_PATH" \
+    CURL_BODY='{"git":["192.0.2.0/24","0.0.0.0/0"],"api":["198.51.100.0/24"],"actions":["0.0.0.0/0"]}' \
+    bash "$FW_UNDER_TEST"
+  [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+
+  # Done claims exactly the 2 legitimate ranges (catch-all not counted)
+  [[ "$output" == *"+ 2 GitHub range(s) from api.github.com/meta"* ]] \
+    || { echo "Done line did not claim exactly 2 ranges: $output"; return 1; }
+
+  # the two legit CIDRs were added
+  [ "$(grep -c 'ipset add allowed-domains 192.0.2.0/24' "$STUB_LOG")" -ge 1 ]
+  [ "$(grep -c 'ipset add allowed-domains 198.51.100.0/24' "$STUB_LOG")" -ge 1 ]
+
+  # the catch-all was NEVER added to the set
+  [ "$(grep -c 'ipset add allowed-domains 0.0.0.0/0' "$STUB_LOG")" -eq 0 ] \
+    || { echo "forged 0.0.0.0/0 reached ipset add"; grep 'ipset add' "$STUB_LOG"; return 1; }
+
+  enf_wait_log "sleep 300"
+  enf_assert_no_leftover
+}
+
+@test "BF-P2-AC6: a catch-all-only body under a wanted key adds 0 ranges and still EXITs 0 (best-effort intact, no catch-all in set)" {
+  enf_make_fw_copy recommended
+  enf_assert_stub_wins iptables ipset dig curl iptables-save sleep
+
+  run --separate-stderr env PATH="$ENF_PATH" \
+    CURL_BODY='{"git":["0.0.0.0/0"]}' \
+    bash "$FW_UNDER_TEST"
+
+  [ "$status" -eq 0 ] || { echo "expected exit 0, got $status"; printf '%s\n' "$stderr"; return 1; }
+  # nothing added; parser emitted nothing -> best-effort WARNING, no ERROR
+  [ "$(grep -c 'ipset add allowed-domains 0.0.0.0/0' "$STUB_LOG")" -eq 0 ] \
+    || { echo "forged 0.0.0.0/0 reached ipset add"; return 1; }
+  [ "$(printf '%s\n' "$stderr" | grep -c '^\[init-firewall\] ERROR:')" -eq 0 ]
+  [ "$(printf '%s\n' "$stderr" | grep -c '^\[init-firewall\] WARNING:')" -ge 1 ]
+  [[ "$output" == *"Done."* ]]
+  [[ "$output" == *"not yet added; retrying"* ]]
+  [[ "$output" != *"GitHub range(s)"* ]]
+  enf_wait_log "sleep 300"
+  enf_assert_no_leftover
+}
+
+# --- BF-P2-AC3: an injected ENFORCING failure is STILL fatal (unchanged) ---
+
+@test "BF-P2-AC3: an injected ipset/iptables ENFORCING failure still exits non-zero with one ERROR and no Done (meta best-effort did NOT relax this)" {
+  enf_assert_stub_wins iptables ipset dig curl iptables-save
+
+  # ipset create (enforcing) fails -> fatal
+  enf_make_fw_copy recommended
+  run --separate-stderr env PATH="$ENF_PATH" FAIL_MATCH='ipset create*' FAIL_RC=4 bash "$FW_UNDER_TEST"
+  [ "$status" -ne 0 ] || { echo "ipset create failure did not abort"; return 1; }
   [ "$(printf '%s\n' "$stderr" | grep -c '^\[init-firewall\] ERROR:')" -eq 1 ]
   [[ "$stderr" =~ line\ [0-9]+ ]]
+  [[ "$output" != *"Done."* ]]
+
+  # the set-match ACCEPT rule (enforcing) fails -> fatal
+  enf_make_fw_copy recommended
+  run --separate-stderr env PATH="$ENF_PATH" FAIL_MATCH='iptables -A OUTPUT -m set*' FAIL_RC=4 bash "$FW_UNDER_TEST"
+  [ "$status" -ne 0 ] || { echo "set-match ACCEPT failure did not abort"; return 1; }
+  [ "$(printf '%s\n' "$stderr" | grep -c '^\[init-firewall\] ERROR:')" -eq 1 ]
   [[ "$output" != *"Done."* ]]
 }
 
