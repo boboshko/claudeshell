@@ -65,10 +65,13 @@ tools_export_build_args
 
 prepull_base_image
 
+PULL_FLAG=()
+[ "${BUILD_PULL:-0}" = "1" ] && PULL_FLAG=(--pull)
+
 if [ -f .env ]; then
-  docker compose -p claudeshell --env-file .env -f docker-compose.yml build
+  docker compose -p claudeshell --env-file .env -f docker-compose.yml build "${PULL_FLAG[@]}"
 else
-  docker compose -p claudeshell -f docker-compose.yml build
+  docker compose -p claudeshell -f docker-compose.yml build "${PULL_FLAG[@]}"
 fi
 
 echo

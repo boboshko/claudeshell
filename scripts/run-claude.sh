@@ -4,55 +4,26 @@ set -e
 source "$SCRIPT_ROOT/scripts/lib-mounts.sh"
 source "$SCRIPT_ROOT/scripts/lib-firewall.sh"
 source "$SCRIPT_ROOT/scripts/lib-tools.sh"
+source "$SCRIPT_ROOT/scripts/lib-build.sh"
 [ -f "$SCRIPT_ROOT/scripts/lib-platform.sh" ] && source "$SCRIPT_ROOT/scripts/lib-platform.sh"
 
 trap 'docker stop claudeshell >/dev/null 2>&1 || true' EXIT INT TERM HUP
 
-_sha256() {
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum | awk '{print $1}'
-  elif command -v shasum >/dev/null 2>&1; then
-    shasum -a 256 | awk '{print $1}'
-  else
-    openssl dgst -sha256 | awk '{print $NF}'
-  fi
-}
-
-HASH_FILE="$SCRIPT_ROOT/docker/.build-hash"
-
-compute_build_hash() {
-  local claude_code_version=""
-  [ -f "$SCRIPT_ROOT/docker/.env" ] && claude_code_version="$(grep -m1 '^CLAUDE_CODE_VERSION=' "$SCRIPT_ROOT/docker/.env" | cut -d= -f2-)"
-
-  { cat \
-    "$SCRIPT_ROOT/docker/Dockerfile" \
-    "$SCRIPT_ROOT/docker/entrypoint.sh" \
-    "$SCRIPT_ROOT/docker/init-firewall.sh" \
-    2>/dev/null
-    grep -Ev '^TOOL_(XCODE|DOCKER_SOCKET)=' "$SCRIPT_ROOT/scripts/tools.conf" 2>/dev/null || true
-    echo "CLAUDE_CODE_VERSION=${claude_code_version:-latest}"
-  } | _sha256
-}
-
-image_exists() {
-  docker image inspect claudeshell:latest >/dev/null 2>&1
-}
-
 firewall_conf_ensure
 tools_conf_ensure
 
-current_hash="$(compute_build_hash)"
+current_hash="$(build_compute_hash)"
 stored_hash=""
-[ -f "$HASH_FILE" ] && stored_hash="$(cat "$HASH_FILE")"
+[ -f "$BUILD_HASH_FILE" ] && stored_hash="$(cat "$BUILD_HASH_FILE")"
 
-if ! image_exists || [ "$current_hash" != "$stored_hash" ]; then
-  if image_exists; then
+if ! build_image_exists || [ "$current_hash" != "$stored_hash" ]; then
+  if build_image_exists; then
     echo "Dockerfile/entrypoint.sh/init-firewall.sh changed since the last build — rebuilding image..."
   else
     echo "The claudeshell image doesn't exist yet — building..."
   fi
   bash "$SCRIPT_ROOT/scripts/build-image.sh"
-  echo "$current_hash" > "$HASH_FILE"
+  echo "$current_hash" > "$BUILD_HASH_FILE"
 fi
 
 bash "$SCRIPT_ROOT/scripts/setup-network-volumes.sh" >/dev/null

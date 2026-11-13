@@ -29,8 +29,8 @@ show_banner
 main_menu() {
   while true; do
     local core_options=("Run Claude Code" "Manage mounted folders" \
-      "Firewall" "Tools" "Fix authorization link")
-    local core_actions=("run" "mounts" "firewall" "tools" "fix-oauth")
+      "Firewall" "Tools" "Fix authorization link" "Refresh Claude Code")
+    local core_actions=("run" "mounts" "firewall" "tools" "fix-oauth" "refresh")
 
     if check_for_update; then
       core_options+=("Update to ${LATEST_VERSION}")
@@ -81,6 +81,15 @@ main_menu() {
       firewall) bash "$SCRIPT_ROOT/scripts/manage-firewall.sh" ;;
       tools)    bash "$SCRIPT_ROOT/scripts/manage-tools.sh" ;;
       fix-oauth) show_banner; bash "$SCRIPT_ROOT/scripts/fix-oauth-url.sh" ;;
+      refresh)
+        show_banner
+        bash "$SCRIPT_ROOT/scripts/refresh-claude.sh"; rc=$?
+        if [ "$rc" -ne 0 ]; then
+          echo
+          echo "Refresh failed (exit code $rc). See the output above."
+        fi
+        press_enter_to_continue
+        ;;
       update)
         show_banner
         if bash "$SCRIPT_ROOT/scripts/update.sh" "$LATEST_VERSION"; then
