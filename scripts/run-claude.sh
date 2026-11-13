@@ -5,12 +5,14 @@ source "$SCRIPT_ROOT/scripts/lib-mounts.sh"
 source "$SCRIPT_ROOT/scripts/lib-firewall.sh"
 source "$SCRIPT_ROOT/scripts/lib-tools.sh"
 source "$SCRIPT_ROOT/scripts/lib-build.sh"
+source "$SCRIPT_ROOT/scripts/lib-watcher.sh"
 [ -f "$SCRIPT_ROOT/scripts/lib-platform.sh" ] && source "$SCRIPT_ROOT/scripts/lib-platform.sh"
 
 trap 'docker stop claudeshell >/dev/null 2>&1 || true' EXIT INT TERM HUP
 
 firewall_conf_ensure
 tools_conf_ensure
+watcher_conf_ensure
 
 current_hash="$(build_compute_hash)"
 stored_hash=""
@@ -72,6 +74,13 @@ else
 fi
 export DISABLE_FIREWALL
 
+if [ "$(watcher_mode 2>/dev/null)" = "enabled" ]; then
+  WATCHER_ENABLED=1
+else
+  WATCHER_ENABLED=0
+fi
+export WATCHER_ENABLED
+
 if [ -f .env ] && grep -Eq '^[[:space:]]*(export[[:space:]]+)?DISABLE_FIREWALL([^A-Za-z0-9_]|$)' .env; then
   echo "[firewall] NOTE: the DISABLE_FIREWALL line in docker/.env is ignored — the Firewall menu decides." >&2
 fi
@@ -79,4 +88,5 @@ fi
 docker compose -p claudeshell "${ENV_FLAG[@]}" \
   "${COMPOSE_FILES[@]}" \
   run --rm --name claudeshell -e "DISABLE_FIREWALL=$DISABLE_FIREWALL" \
+  -e "WATCHER_ENABLED=$WATCHER_ENABLED" \
   claudeshell "${ADD_DIR_ARGS[@]}" "$@"

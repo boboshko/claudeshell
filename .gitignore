@@ -12,3 +12,4 @@ docker/.build-log
 docker/.build-status
 docker/.build.lock
 scripts/platform/macos/.bridge.pid
+scripts/watcher.conf

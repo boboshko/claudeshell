@@ -49,6 +49,7 @@ services:
       - DISABLE_FIREWALL=${DISABLE_FIREWALL:-0}
       - XCODE_BRIDGE_ENABLED=${XCODE_BRIDGE_ENABLED:-0}
       - XCODE_BRIDGE_PORT=${XCODE_BRIDGE_PORT:-47870}
+      - WATCHER_ENABLED=${WATCHER_ENABLED:-0}
 
     volumes:
       - claudeshell-config:/home/claude/.claude
