@@ -21,4 +21,17 @@ else
   exit 1
 fi
 
+# If the "Docker socket access" tool mounted the host Docker socket, hand it to
+# the 'claude' group so the in-container docker CLI can actually use it (the
+# socket arrives root:root 0660 and 'claude' is unprivileged). No socket => the
+# helper is a no-op. Access to the host daemon is root-equivalent on the host —
+# it only happens because the user enabled that tool and accepted its warning.
+if [ -S /var/run/docker.sock ]; then
+  if sudo /usr/local/bin/fix-docker-sock.sh; then
+    echo "[entrypoint] Docker socket access: host daemon socket is now usable from this container (root-equivalent host access — enabled via the 'Docker socket access' tool)."
+  else
+    echo "[entrypoint] WARNING: a Docker socket is mounted but adjusting its permissions failed — 'docker' may report permission denied inside the container." >&2
+  fi
+fi
+
 exec claude "$@"

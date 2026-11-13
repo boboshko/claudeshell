@@ -64,6 +64,10 @@ main_menu() {
           echo "Firewall: Recommended. Change this in the Firewall menu."
           export DISABLE_FIREWALL=0
         fi
+        tools_conf_ensure
+        if tools_enabled DOCKER_SOCKET; then
+          echo "Docker socket: ENABLED — this container can control your host Docker daemon (root-equivalent host access). Change this in the Tools menu."
+        fi
         echo
         bash "$SCRIPT_ROOT/scripts/run-claude.sh"; rc=$?
         if [ "$rc" -ne 0 ]; then

@@ -314,11 +314,13 @@ RUN chmod +x /usr/local/bin/xcodebuild /usr/local/bin/xcrun /usr/local/bin/simct
 RUN useradd -m -s /bin/bash claude \
     && mkdir -p /home/claude/.claude /home/claude/.npm \
     && chown -R claude:claude /home/claude \
-    && echo "claude ALL=(ALL) NOPASSWD: /usr/local/bin/init-firewall.sh" >> /etc/sudoers
+    && echo "claude ALL=(ALL) NOPASSWD: /usr/local/bin/init-firewall.sh" >> /etc/sudoers \
+    && echo "claude ALL=(ALL) NOPASSWD: /usr/local/bin/fix-docker-sock.sh" >> /etc/sudoers
 
 COPY init-firewall.sh /usr/local/bin/init-firewall.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/entrypoint.sh
+COPY fix-docker-sock.sh /usr/local/bin/fix-docker-sock.sh
+RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/entrypoint.sh /usr/local/bin/fix-docker-sock.sh
 
 ENV CLAUDE_CONFIG_DIR=/home/claude/.claude
 

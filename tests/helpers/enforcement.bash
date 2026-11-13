@@ -99,12 +99,17 @@ exit 1
 STUB
   chmod +x "$STUBS/sleep"
 
-  # sudo: logs its arguments. It refuses anything but the firewall script. With
-  # $SUDO_RC set it just returns that code (firewall "fails" without running
-  # anything); otherwise it execs the patched copy, exercising the real chain.
+  # sudo: logs its arguments. It allows the firewall script and the docker-socket
+  # helper; it refuses anything else. With $SUDO_RC set it just returns that code
+  # (firewall "fails" without running anything); otherwise it execs the patched
+  # firewall copy, exercising the real chain. The docker-socket helper is a no-op
+  # here (never touches a real socket), controllable via $FIX_SOCK_RC.
   cat > "$STUBS/sudo" <<'STUB'
 #!/usr/bin/env bash
 printf 'sudo %s\n' "$*" >> "$SUDO_LOG"
+if [ "$1" = "/usr/local/bin/fix-docker-sock.sh" ]; then
+  exit "${FIX_SOCK_RC:-0}"
+fi
 if [ "$1" != "/usr/local/bin/init-firewall.sh" ]; then
   echo "STUB-SUDO: refusing unexpected command: $*" >&2
   exit 99
