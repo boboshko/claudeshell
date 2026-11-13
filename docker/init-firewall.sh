@@ -10,8 +10,8 @@ trap 'on_err "$LINENO" "$BASH_COMMAND"' ERR
 
 echo "[init-firewall] Setting up the firewall..."
 
-if ! source /etc/claude-shell/lib-firewall.sh 2>/dev/null; then
-  echo "[init-firewall] WARNING: /etc/claude-shell/lib-firewall.sh could not be loaded — enforcing the fixed Recommended allow-list."
+if ! source /etc/claudeshell/lib-firewall.sh 2>/dev/null; then
+  echo "[init-firewall] WARNING: /etc/claudeshell/lib-firewall.sh could not be loaded — enforcing the fixed Recommended allow-list."
   firewall_mode() { echo "recommended"; }
 fi
 

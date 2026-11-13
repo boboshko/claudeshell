@@ -327,3 +327,19 @@ WORKDIR /workspace
 USER claude
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+# OCI image metadata (build provenance). Declared here as the final, zero-size
+# metadata layer so a changing BUILD_DATE only rebuilds this layer, never the
+# expensive tool layers above. Versioning lives in the toolkit VERSION/git tag and
+# is stamped here via org.opencontainers.image.version; the image name/tag stays a
+# single rolling claudeshell:latest. BUILD_DATE/APP_VERSION are passed by
+# scripts/build-image.sh (RFC 3339 UTC date, and the VERSION file); they default to
+# "unknown" so a plain `docker build` without them still succeeds.
+ARG BUILD_DATE=unknown
+ARG APP_VERSION=unknown
+LABEL org.opencontainers.image.title="claudeshell" \
+      org.opencontainers.image.description="Claude Code in an isolated Docker sandbox" \
+      org.opencontainers.image.source="https://github.com/boboshko/claudeshell" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      com.claudeshell.claude-code.version="${CLAUDE_CODE_VERSION}"

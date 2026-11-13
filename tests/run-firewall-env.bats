@@ -114,7 +114,7 @@ _envh_assert_record() {
   [ "$val" = "$want" ] || { echo "[$ctx] env value $val, wanted $want"; return 1; }
   [ "$val" != "<unset>" ] && [ -n "$val" ] || { echo "[$ctx] value unset/empty"; return 1; }
   # -e DISABLE_FIREWALL=<want> is passed and precedes the service name
-  [[ "$args" == *"-e DISABLE_FIREWALL=$want claude-shell"* ]] \
+  [[ "$args" == *"-e DISABLE_FIREWALL=$want claudeshell"* ]] \
     || { echo "[$ctx] args missing '-e DISABLE_FIREWALL=$want' before service: $args"; return 1; }
   # --env-file .env present iff the file exists
   if [ "$envv" = "absent" ]; then
@@ -198,7 +198,7 @@ _envh_assert_record() {
   _envh_write_conf recommended
   # make the mounts override the scripts expect
   ( cd "$ROOT/docker" && : > docker-compose.mounts.yml )
-  printf 'services:\n  claude-shell:\n    image: claude-shell:latest\n' \
+  printf 'services:\n  claudeshell:\n    image: claudeshell:latest\n' \
     > "$ROOT/docker/docker-compose.mounts.yml"
 
   local envv val out
@@ -209,7 +209,7 @@ _envh_assert_record() {
       local envfile_flag=()
       [ -f "$ROOT/docker/.env" ] && envfile_flag=(--env-file .env)
       out="$(cd "$ROOT/docker" && DISABLE_FIREWALL="$val" /usr/bin/docker compose \
-        -p claude-shell "${envfile_flag[@]}" \
+        -p claudeshell "${envfile_flag[@]}" \
         -f docker-compose.yml -f docker-compose.mounts.yml config 2>/dev/null \
         | grep -A2 -i 'DISABLE_FIREWALL' | head -3)"
       [[ "$out" == *"$val"* ]] || { echo "[env=$envv exported=$val] resolved: $out"; return 1; }

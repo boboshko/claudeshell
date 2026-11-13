@@ -113,7 +113,7 @@ tools_generate_docker_socket_override() {
   if tools_enabled DOCKER_SOCKET; then
     {
       echo "services:"
-      echo "  claude-shell:"
+      echo "  claudeshell:"
       echo "    volumes:"
       echo "      - /var/run/docker.sock:/var/run/docker.sock"
     } > "$TOOLS_DOCKER_SOCKET_OVERRIDE"

@@ -145,13 +145,13 @@ enf_assert_stub_wins() {
 # $1 = mode (default recommended).
 enf_make_fw_copy() {
   local src="$REPO_ROOT/docker/init-firewall.sh" count
-  count="$(grep -c '/etc/claude-shell/lib-firewall.sh' "$src")"
+  count="$(grep -c '/etc/claudeshell/lib-firewall.sh' "$src")"
   if [ "$count" -ne 2 ]; then
     echo "enf_make_fw_copy: expected the hardcoded lib path exactly twice, found $count" >&2
     return 1
   fi
   FW_UNDER_TEST="$BATS_TEST_TMPDIR/init-firewall.sh"
-  sed "s#/etc/claude-shell/lib-firewall.sh#$REPO_ROOT/scripts/lib-firewall.sh#g" \
+  sed "s#/etc/claudeshell/lib-firewall.sh#$REPO_ROOT/scripts/lib-firewall.sh#g" \
     "$src" > "$FW_UNDER_TEST"
   FIREWALL_CONF="$BATS_TEST_TMPDIR/firewall.conf"
   printf 'MODE=%s\n' "${1:-recommended}" > "$FIREWALL_CONF"

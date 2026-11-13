@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 : "${XCODE_BRIDGE_PIDFILE:=${SCRIPT_ROOT:+$SCRIPT_ROOT/scripts/platform/macos/.bridge.pid}}"
-: "${XCODE_BRIDGE_PIDFILE:=/tmp/claude-shell-xcode-bridge.pid}"
+: "${XCODE_BRIDGE_PIDFILE:=/tmp/claudeshell-xcode-bridge.pid}"
 : "${XCODE_BRIDGE_HELPER:=${SCRIPT_ROOT:+$SCRIPT_ROOT/scripts/platform/macos/xcode-bridge-helper.py}}"
-: "${XCODE_BRIDGE_LOG:=$HOME/.claude-shell/xcode-bridge.log}"
+: "${XCODE_BRIDGE_LOG:=$HOME/.claudeshell/xcode-bridge.log}"
 : "${XCODE_BRIDGE_PORT:=47870}"
 
 xcode_bridge_detect() {

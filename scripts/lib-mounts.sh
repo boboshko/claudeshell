@@ -35,7 +35,7 @@ mounts_generate_override() {
 
   {
     echo "services:"
-    echo "  claude-shell:"
+    echo "  claudeshell:"
     echo "    volumes:"
 
     local root_path="${SCRIPT_ROOT}/workspace"

@@ -6,7 +6,7 @@ source "$SCRIPT_ROOT/scripts/lib-firewall.sh"
 source "$SCRIPT_ROOT/scripts/lib-tools.sh"
 [ -f "$SCRIPT_ROOT/scripts/lib-platform.sh" ] && source "$SCRIPT_ROOT/scripts/lib-platform.sh"
 
-trap 'docker stop claude-shell >/dev/null 2>&1 || true' EXIT INT TERM HUP
+trap 'docker stop claudeshell >/dev/null 2>&1 || true' EXIT INT TERM HUP
 
 _sha256() {
   if command -v sha256sum >/dev/null 2>&1; then
@@ -35,7 +35,7 @@ compute_build_hash() {
 }
 
 image_exists() {
-  docker image inspect claude-shell:latest >/dev/null 2>&1
+  docker image inspect claudeshell:latest >/dev/null 2>&1
 }
 
 firewall_conf_ensure
@@ -49,7 +49,7 @@ if ! image_exists || [ "$current_hash" != "$stored_hash" ]; then
   if image_exists; then
     echo "Dockerfile/entrypoint.sh/init-firewall.sh changed since the last build — rebuilding image..."
   else
-    echo "The claude-shell image doesn't exist yet — building..."
+    echo "The claudeshell image doesn't exist yet — building..."
   fi
   bash "$SCRIPT_ROOT/scripts/build-image.sh"
   echo "$current_hash" > "$HASH_FILE"
@@ -94,7 +94,7 @@ if [ -f .env ] && grep -Eq '^[[:space:]]*(export[[:space:]]+)?DISABLE_FIREWALL([
   echo "[firewall] NOTE: the DISABLE_FIREWALL line in docker/.env is ignored — the Firewall menu decides." >&2
 fi
 
-docker compose -p claude-shell "${ENV_FLAG[@]}" \
+docker compose -p claudeshell "${ENV_FLAG[@]}" \
   "${COMPOSE_FILES[@]}" \
-  run --rm --name claude-shell -e "DISABLE_FIREWALL=$DISABLE_FIREWALL" \
-  claude-shell "${ADD_DIR_ARGS[@]}" "$@"
+  run --rm --name claudeshell -e "DISABLE_FIREWALL=$DISABLE_FIREWALL" \
+  claudeshell "${ADD_DIR_ARGS[@]}" "$@"

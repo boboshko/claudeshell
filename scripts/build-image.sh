@@ -54,14 +54,21 @@ prepull_base_image() {
 
 export CACHE_BUST="$(date +%s)"
 
+# OCI label values — build provenance stamped into the image metadata (not its name).
+# BUILD_DATE is RFC 3339 UTC; APP_VERSION is the toolkit VERSION (source of truth for
+# versioning — the image itself stays a single rolling claudeshell:latest tag).
+export BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export APP_VERSION="$(tr -d '[:space:]' < "$SCRIPT_ROOT/VERSION" 2>/dev/null || true)"
+: "${APP_VERSION:=unknown}"
+
 tools_export_build_args
 
 prepull_base_image
 
 if [ -f .env ]; then
-  docker compose -p claude-shell --env-file .env -f docker-compose.yml build
+  docker compose -p claudeshell --env-file .env -f docker-compose.yml build
 else
-  docker compose -p claude-shell -f docker-compose.yml build
+  docker compose -p claudeshell -f docker-compose.yml build
 fi
 
 echo
