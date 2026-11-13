@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 : "${FIREWALL_CONF:=${SCRIPT_ROOT:+$SCRIPT_ROOT/scripts/firewall.conf}}"
-: "${FIREWALL_CONF:=/etc/claude-shell/firewall.conf}"
+: "${FIREWALL_CONF:=/etc/claudeshell/firewall.conf}"
 
 FW_DOMAIN_REGEX='^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$'
 FW_CIDR_REGEX='^[0-9]{1,3}(\.[0-9]{1,3}){3}/[0-9]{1,2}$'

@@ -1,15 +1,15 @@
 #!/bin/bash
 set -e
 
-echo "Checking network claude-shell..."
-if docker network inspect claude-shell >/dev/null 2>&1; then
+echo "Checking network claudeshell..."
+if docker network inspect claudeshell >/dev/null 2>&1; then
   echo "  already exists, skipping."
 else
-  docker network create claude-shell
+  docker network create claudeshell
   echo "  created."
 fi
 
-for vol in claude-shell-config claude-shell-npm-cache; do
+for vol in claudeshell-config claudeshell-npm-cache; do
   echo "Checking volume ${vol}..."
   if docker volume inspect "$vol" >/dev/null 2>&1; then
     echo "  already exists, skipping."

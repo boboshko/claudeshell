@@ -1,0 +1,78 @@
+{
+  "verifiable_password_authentication": false,
+  "ssh_key_fingerprints": {
+    "SHA256_RSA": "nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8",
+    "SHA256_ED25519": "+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"
+  },
+  "ssh_keys": [
+    "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTY=",
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+  ],
+  "hooks": [
+    "192.30.252.0/22",
+    "185.199.108.0/22",
+    "140.82.112.0/20"
+  ],
+  "web": [
+    "203.0.113.0/24",
+    "203.0.113.128/25"
+  ],
+  "api": [
+    "198.51.100.0/24",
+    "198.51.100.128/25"
+  ],
+  "git": [
+    "192.0.2.0/24",
+    "192.0.2.128/25"
+  ],
+  "domains": {
+    "website": [
+      "*.github.com",
+      "*.github.dev"
+    ],
+    "codespaces": [
+      "*.github.com"
+    ]
+  },
+  "packages": [
+    "185.11.76.0/22",
+    "ghcr-not/real",
+    "140.82.121.0/24"
+  ],
+  "importer": [
+    "10.1.2.0/24",
+    "10.1.3.0/24"
+  ],
+  "pages": [
+    "192.30.252.153/32",
+    "192.30.252.154/32"
+  ],
+  "actions_macos": [
+    "13.64.0.0/16",
+    "20.33.0.0/16"
+  ],
+  "dependabot": [
+    "100.20.0.0/14",
+    "54.185.0.0/16"
+  ],
+  "copilot": [
+    "140.82.113.0/24"
+  ],
+  "actions": [
+    "4.148.0.0/16",
+    "4.149.0.0/18",
+    "4.150.0.0/15",
+    "4.152.0.0/14",
+    "4.156.0.0/15",
+    "4.175.0.0/16",
+    "4.180.0.0/16",
+    "4.207.0.0/16",
+    "4.208.0.0/15",
+    "4.210.0.0/17",
+    "4.231.0.0/17",
+    "4.236.0.0/17",
+    "9.163.0.0/16",
+    "13.64.0.0/11",
+    "20.1.128.0/17"
+  ]
+}

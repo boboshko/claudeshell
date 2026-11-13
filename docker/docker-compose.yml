@@ -1,11 +1,13 @@
 services:
-  claude-shell:
+  claudeshell:
     build:
       context: .
       dockerfile: Dockerfile
       args:
         CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION:-latest}
         CACHE_BUST: ${CACHE_BUST:-1}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+        APP_VERSION: ${APP_VERSION:-unknown}
         TOOL_DOCKER_CLI: ${TOOL_DOCKER_CLI:-0}
         TOOL_DOCKER_COMPOSE: ${TOOL_DOCKER_COMPOSE:-0}
         TOOL_PYTHON: ${TOOL_PYTHON:-0}
@@ -27,9 +29,9 @@ services:
         TOOL_JQ: ${TOOL_JQ:-0}
         TOOL_YQ: ${TOOL_YQ:-0}
         TOOL_WGET: ${TOOL_WGET:-0}
-    image: claude-shell:latest
-    container_name: claude-shell
-    hostname: claude-shell
+    image: claudeshell:latest
+    container_name: claudeshell
+    hostname: claudeshell
 
     cap_add:
       - NET_ADMIN
@@ -49,23 +51,23 @@ services:
       - XCODE_BRIDGE_PORT=${XCODE_BRIDGE_PORT:-47870}
 
     volumes:
-      - claude-shell-config:/home/claude/.claude
-      - claude-shell-npm-cache:/home/claude/.npm
-      - ../scripts/firewall.conf:/etc/claude-shell/firewall.conf:ro
-      - ../scripts/lib-firewall.sh:/etc/claude-shell/lib-firewall.sh:ro
+      - claudeshell-config:/home/claude/.claude
+      - claudeshell-npm-cache:/home/claude/.npm
+      - ../scripts/firewall.conf:/etc/claudeshell/firewall.conf:ro
+      - ../scripts/lib-firewall.sh:/etc/claudeshell/lib-firewall.sh:ro
 
     networks:
-      - claude-shell
+      - claudeshell
 
     stdin_open: true
     tty: true
 
 networks:
-  claude-shell:
+  claudeshell:
     external: true
 
 volumes:
-  claude-shell-config:
+  claudeshell-config:
     external: true
-  claude-shell-npm-cache:
+  claudeshell-npm-cache:
     external: true
