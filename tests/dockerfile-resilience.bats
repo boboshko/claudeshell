@@ -26,6 +26,7 @@ https://cli.github.com/packages
 https://cli.github.com/packages/githubcli-archive-keyring.gpg
 https://download.docker.com/linux/debian
 https://download.docker.com/linux/debian/gpg
+https://github.com/boboshko/claudeshell
 https://github.com/mikefarah/yq/releases/latest/download/yq_linux_\$(dpkg
 https://go.dev/dl/go1.23.4.linux-\$(dpkg
 https://pgp.mongodb.com/server-7.0.asc
@@ -146,7 +147,7 @@ https://sh.rustup.rs"
   [ "$output" -eq 21 ]
 }
 
-@test "AC9[S]: ordering helper-defs < base apt < CACHE_BUST < claude npm; 3 COPY" {
+@test "AC9[S]: ordering helper-defs < base apt < CACHE_BUST < claude npm; 5 COPY" {
   l_apt="$(grep -n '> /usr/local/bin/apt-retry' "$DOCKERFILE" | head -1 | cut -d: -f1)"
   l_fetch="$(grep -n '> /usr/local/bin/fetch-retry' "$DOCKERFILE" | head -1 | cut -d: -f1)"
   l_run="$(grep -n '> /usr/local/bin/run-retry' "$DOCKERFILE" | head -1 | cut -d: -f1)"
@@ -159,7 +160,7 @@ https://sh.rustup.rs"
   [ "$l_base" -lt "$l_bust" ]
   [ "$l_bust" -lt "$l_npm" ]
   run grep -cE '^COPY ' "$DOCKERFILE"
-  [ "$output" -eq 3 ]
+  [ "$output" -eq 5 ]
 }
 
 @test "AC10[S]: extracted https URL set equals the fixed expected set" {
