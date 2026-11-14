@@ -13,6 +13,7 @@ source "$SCRIPT_ROOT/scripts/lib-update.sh"
 source "$SCRIPT_ROOT/scripts/lib-platform.sh"
 source "$SCRIPT_ROOT/scripts/lib-firewall.sh"
 source "$SCRIPT_ROOT/scripts/lib-tools.sh"
+source "$SCRIPT_ROOT/scripts/lib-watcher.sh"
 
 print_banner_text() {
   cat "$SCRIPT_ROOT/scripts/banner.txt"
@@ -29,8 +30,8 @@ show_banner
 main_menu() {
   while true; do
     local core_options=("Run Claude Code" "Manage mounted folders" \
-      "Firewall" "Tools" "Fix authorization link")
-    local core_actions=("run" "mounts" "firewall" "tools" "fix-oauth")
+      "Firewall" "Tools" "Watcher" "Fix authorization link" "Refresh Claude Code")
+    local core_actions=("run" "mounts" "firewall" "tools" "watcher" "fix-oauth" "refresh")
 
     if check_for_update; then
       core_options+=("Update to ${LATEST_VERSION}")
@@ -64,9 +65,14 @@ main_menu() {
           echo "Firewall: Recommended. Change this in the Firewall menu."
           export DISABLE_FIREWALL=0
         fi
+        firewall_warn_unsupported
         tools_conf_ensure
         if tools_enabled DOCKER_SOCKET; then
           echo "Docker socket: ENABLED — this container can control your host Docker daemon (root-equivalent host access). Change this in the Tools menu."
+        fi
+        watcher_conf_ensure
+        if [ "$(watcher_mode)" = "enabled" ]; then
+          echo "Watcher: Enabled — Claude Code will auto-restart and resume on an abnormal exit. Change this in the Watcher menu."
         fi
         echo
         bash "$SCRIPT_ROOT/scripts/run-claude.sh"; rc=$?
@@ -80,7 +86,17 @@ main_menu() {
       mounts) bash "$SCRIPT_ROOT/scripts/manage-mounts.sh" ;;
       firewall) bash "$SCRIPT_ROOT/scripts/manage-firewall.sh" ;;
       tools)    bash "$SCRIPT_ROOT/scripts/manage-tools.sh" ;;
+      watcher)  bash "$SCRIPT_ROOT/scripts/manage-watcher.sh" ;;
       fix-oauth) show_banner; bash "$SCRIPT_ROOT/scripts/fix-oauth-url.sh" ;;
+      refresh)
+        show_banner
+        bash "$SCRIPT_ROOT/scripts/refresh-claude.sh"; rc=$?
+        if [ "$rc" -ne 0 ]; then
+          echo
+          echo "Refresh failed (exit code $rc). See the output above."
+        fi
+        press_enter_to_continue
+        ;;
       update)
         show_banner
         if bash "$SCRIPT_ROOT/scripts/update.sh" "$LATEST_VERSION"; then

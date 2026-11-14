@@ -15,6 +15,8 @@ if ! source /etc/claudeshell/lib-firewall.sh 2>/dev/null; then
   firewall_mode() { echo "recommended"; }
 fi
 
+command -v firewall_warn_unsupported >/dev/null 2>&1 && firewall_warn_unsupported || true
+
 DOCKER_DNS_RULES="$(iptables-save 2>/dev/null | grep '127.0.0.11' || true)"
 
 iptables -F

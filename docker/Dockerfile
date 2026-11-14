@@ -320,7 +320,8 @@ RUN useradd -m -s /bin/bash claude \
 COPY init-firewall.sh /usr/local/bin/init-firewall.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY fix-docker-sock.sh /usr/local/bin/fix-docker-sock.sh
-RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/entrypoint.sh /usr/local/bin/fix-docker-sock.sh
+COPY supervise-claude.sh /usr/local/bin/supervise-claude.sh
+RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/entrypoint.sh /usr/local/bin/fix-docker-sock.sh /usr/local/bin/supervise-claude.sh
 
 ENV CLAUDE_CONFIG_DIR=/home/claude/.claude
 

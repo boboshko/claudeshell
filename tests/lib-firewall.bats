@@ -293,3 +293,39 @@ leftover_temp_files() {
   cmp "$TEST_TMP/before" "$FIREWALL_CONF"
   [ -z "$(leftover_temp_files)" ]
 }
+
+@test "#10: firewall_warn_unsupported notes CUSTOM_* entries and returns 0" {
+  write_conf "MODE=recommended" "CUSTOM_1=example.com"
+  run firewall_warn_unsupported
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"NOTE"* ]]
+  [[ "$output" == *"ignored"* ]]
+}
+
+@test "#10: firewall_warn_unsupported notes SERVICE_* entries" {
+  write_conf "MODE=recommended" "SERVICE_NPM=on"
+  run firewall_warn_unsupported
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"NOTE"* ]]
+}
+
+@test "#10: firewall_warn_unsupported is silent for a MODE-only config" {
+  write_conf "MODE=recommended"
+  run firewall_warn_unsupported
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "#10: firewall_warn_unsupported ignores commented-out CUSTOM_/SERVICE_ lines" {
+  write_conf "MODE=recommended" "# CUSTOM_1=example.com" "#SERVICE_NPM=on"
+  run firewall_warn_unsupported
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "#10: firewall_warn_unsupported is a silent no-op when the config is missing" {
+  rm -f "$FIREWALL_CONF"
+  run firewall_warn_unsupported
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}

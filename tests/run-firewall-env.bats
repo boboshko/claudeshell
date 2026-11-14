@@ -114,7 +114,7 @@ _envh_assert_record() {
   [ "$val" = "$want" ] || { echo "[$ctx] env value $val, wanted $want"; return 1; }
   [ "$val" != "<unset>" ] && [ -n "$val" ] || { echo "[$ctx] value unset/empty"; return 1; }
   # -e DISABLE_FIREWALL=<want> is passed and precedes the service name
-  [[ "$args" == *"-e DISABLE_FIREWALL=$want claudeshell"* ]] \
+  [[ "$args" == *"-e DISABLE_FIREWALL=$want"*"claudeshell"* ]] \
     || { echo "[$ctx] args missing '-e DISABLE_FIREWALL=$want' before service: $args"; return 1; }
   # --env-file .env present iff the file exists
   if [ "$envv" = "absent" ]; then

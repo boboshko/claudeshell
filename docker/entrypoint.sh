@@ -34,4 +34,8 @@ if [ -S /var/run/docker.sock ]; then
   fi
 fi
 
-exec claude "$@"
+if [ "${WATCHER_ENABLED:-0}" = "1" ]; then
+  exec /usr/local/bin/supervise-claude.sh "$@"
+else
+  exec claude "$@"
+fi
