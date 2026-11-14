@@ -142,3 +142,12 @@ firewall_set_mode() {
   fi
   _firewall_set_key "MODE" "$mode"
 }
+
+firewall_warn_unsupported() {
+  local f="${1:-$FIREWALL_CONF}"
+  [ -r "$f" ] || return 0
+  if grep -qE '^[[:space:]]*(CUSTOM_|SERVICE_)[A-Za-z0-9_]*=' "$f" 2>/dev/null; then
+    echo "[firewall] NOTE: CUSTOM_* / SERVICE_* entries in firewall.conf are not supported and are ignored — only MODE (recommended|disabled) takes effect. Remove them to silence this note." >&2
+  fi
+  return 0
+}

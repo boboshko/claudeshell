@@ -65,6 +65,7 @@ main_menu() {
           echo "Firewall: Recommended. Change this in the Firewall menu."
           export DISABLE_FIREWALL=0
         fi
+        firewall_warn_unsupported
         tools_conf_ensure
         if tools_enabled DOCKER_SOCKET; then
           echo "Docker socket: ENABLED — this container can control your host Docker daemon (root-equivalent host access). Change this in the Tools menu."
