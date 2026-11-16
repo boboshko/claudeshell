@@ -13,7 +13,7 @@
 ## Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/boboshko/claudeshell/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/boboshko/claudeshell/master/install.sh | bash
 ```
 
 ## Usage
